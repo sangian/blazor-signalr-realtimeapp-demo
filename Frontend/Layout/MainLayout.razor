@@ -1,0 +1,45 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
+
+@inherits LayoutComponentBase
+
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<FluentLayout>
+    <FluentHeader Style="background-color: #1A1F71;">
+        <FluentStack Orientation="Orientation.Horizontal" Style="justify-content: space-between; align-items: center;">
+            <div style="display: flex; grid-gap: 10px;">
+                <FluentIcon Icon="@(Icons.Filled.Size24.Airplane)" Color="Color.Custom" CustomColor="#ffffff" Style="transform: rotate(-45deg)" />
+                Flight Tracker
+            </div>
+            <AuthorizeView>
+                <Authorized>
+                    <div>
+                        <FluentButton Appearance="Appearance.Outline" BackgroundColor="transparent" Color="white" OnClick="Logout">
+                            <div style="display: flex; justify-content: center; align-items: center; grid-gap: 5px;">
+                                <FluentIcon Icon="@(Icons.Filled.Size20.ArrowExit)" Color="Color.Custom" CustomColor="#ffffff" />
+                                Logout
+                            </div>
+                        </FluentButton>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        </FluentStack>
+    </FluentHeader>
+    <FluentBodyContent>
+        @Body
+    </FluentBodyContent>
+</FluentLayout>
+
+<FluentToastProvider />
+
+
+@code {
+    private async Task Logout()
+    {
+        var customProvider = (CustomAuthenticationStateProvider)AuthStateProvider;
+        await customProvider.NotifyUserLogout();
+        NavigationManager.NavigateTo("/login");
+    }
+}

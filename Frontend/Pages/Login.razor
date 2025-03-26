@@ -1,0 +1,115 @@
+﻿@page "/login"
+@layout UnauthorizedLayout
+
+@using Microsoft.FluentUI.AspNetCore.Components
+@using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
+
+@inject NavigationManager NavigationManager
+@inject ApiService ApiService
+@inject IToastService ToastService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Realtime Apps | Login</PageTitle>
+
+<FluentLayout Style="padding: 20px 20px;">
+    <h4>Welcome to Realtime Apps</h4>
+    <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin" FormName="loginForm" @ref="loginForm">
+        <DataAnnotationsValidator />
+
+        <FluentStack Orientation="Orientation.Vertical">
+            <div>
+                <FluentTextField Name="username"
+                Id="username"
+                @ref="usernameField"
+                @bind-Value="loginModel.Username" 
+                Label="Username"
+                Placeholder="Enter your username" 
+                Required
+                @onkeydown="@OnEnterInUsernameField" />
+                <FluentValidationMessage For="@(() => loginModel.Username)" />
+            </div>
+            <div>
+                <FluentTextField Name="password"
+                Id="password"
+                @ref="passwordField"
+                @bind-Value="loginModel.Password"
+                TextFieldType="TextFieldType.Password"
+                Label="Password"
+                Placeholder="Enter your password"
+                Required
+                @onkeydown="@OnEnterInPasswordField" />
+                <FluentValidationMessage For="@(() => loginModel.Password)" />
+            </div>
+            <FluentButton Type="ButtonType.Submit" Appearance="Appearance.Accent" BackgroundColor="#1A1F71" Color="#FFFFFF" Loading="isLoggingIn">
+                <div style="display: flex; justify-content: center; align-items: center; grid-gap: 5px;">
+                    <FluentIcon Icon="@(Icons.Filled.Size20.ArrowEnter)" Color="Color.Custom" CustomColor="#ffffff" />
+                    Login
+                </div>
+            </FluentButton>
+        </FluentStack>
+    </EditForm>
+</FluentLayout>
+
+@code {
+    [SupplyParameterFromForm]
+    private LoginModel loginModel { get; set; } = new();
+
+    private EditForm loginForm = new();
+    private FluentTextField usernameField = new();
+    private FluentTextField passwordField = new();
+
+    private bool isLoggingIn = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Yield();
+            usernameField.FocusAsync();
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        isLoggingIn = true;
+
+        if (string.IsNullOrEmpty(loginModel.Username) || string.IsNullOrEmpty(loginModel.Password))
+        {
+            ToastService.ShowError("Username and Password cannot be empty.");
+
+            isLoggingIn = false;
+
+            return;
+        }
+
+        var accessToken = await ApiService.GetAccessToken(new TokenRequest
+        {
+            Username = loginModel.Username,
+            Password = loginModel.Password
+        });
+
+        bool isAuthenticated = !string.IsNullOrWhiteSpace(accessToken);
+        if (isAuthenticated)
+        {
+            var customProvider = (CustomAuthenticationStateProvider)AuthStateProvider;
+            await customProvider.NotifyUserLogin(accessToken!);
+            NavigationManager.NavigateTo("/", true);
+        }
+        else
+        {
+            ToastService.ShowError("Invalid credentials. Please try again.");
+        }
+
+        isLoggingIn = false;
+    }
+
+    private void OnEnterInUsernameField(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") passwordField.FocusAsync();
+    }
+
+    private async Task OnEnterInPasswordField(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await loginForm.OnSubmit.InvokeAsync();
+    }
+}

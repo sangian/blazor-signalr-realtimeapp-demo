@@ -1,0 +1,20 @@
+﻿namespace Shared
+{
+    public class Constants
+    {
+        public const string CLIENT_START_REQUEST = "StartRequest";
+        public const string CLIENT_STOP_REQUEST = "StopRequest";
+
+        public const string SERVER_START_RESPONSE = "StartResponse";
+        public const string SERVER_STOP_RESPONSE = "StopResponse";
+        public const string SERVER_AIRPLANE_ARRIVED = "AirplaneArrived";
+        public const string SERVER_AIRPLANE_CRASHED = "AirplaneCrashed";
+        public const string SERVER_STREAM_TELEMETRY = "StreamTelemetry";
+
+        public const string PING = "Ping";
+        public const string PONG = "Pong";
+
+        public const string CLIENT_NOTIFY_AIRPLANE_START_RESPONSE = "NotifyAirplaneStartResponse";
+        public const string CLIENT_NOTIFY_AIRPLANE_STOP_RESPONSE = "NotifyAirplaneStopResponse";
+    }
+}

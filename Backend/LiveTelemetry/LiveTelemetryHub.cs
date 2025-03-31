@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
-using Shared;
+using Shared.TelemetryServer;
 using System.Threading.Channels;
 
 namespace Backend.LiveTelemetry;

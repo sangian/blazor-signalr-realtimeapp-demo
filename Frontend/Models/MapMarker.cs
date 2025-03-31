@@ -1,5 +1,5 @@
 ﻿using GoogleMapsComponents.Maps;
-using Shared;
+using Shared.TelemetryServer;
 
 namespace Frontend.Models;
 

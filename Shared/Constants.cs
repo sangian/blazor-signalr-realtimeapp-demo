@@ -16,5 +16,14 @@
 
         public const string CLIENT_NOTIFY_AIRPLANE_START_RESPONSE = "NotifyAirplaneStartResponse";
         public const string CLIENT_NOTIFY_AIRPLANE_STOP_RESPONSE = "NotifyAirplaneStopResponse";
+
+        public const string CLIENT_CHAT_ROOM_CREATED = "ChatRoomCreated";
+        public const string CLIENT_CHAT_ROOM_MEMBER_ADDED = "ChatRoomMemberAdded";
+        public const string CLIENT_CHAT_ROOM_MEMBER_REMOVED = "ChatRoomMemberRemoved";
+        public const string CLIENT_CHAT_ROOM_DELETED = "ChatRoomDeleted";
+
+        public const string CLIENT_CHAT_MESSAGE_SENT = "ChatMessageSent";
+        public const string CLIENT_CHAT_MESSAGE_DELIVERED = "ChatMessageDelivered";
+        public const string CLIENT_CHAT_MESSAGE_READ = "ChatMessageRead";
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Backend.LiveTelemetry;
 using Microsoft.AspNetCore.SignalR;
 using Shared;
+using Shared.TelemetryServer;
 
 namespace Backend.TelemetryServer;
 

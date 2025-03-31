@@ -1,9 +1,10 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Shared.TelemetryServer;
 using System.Collections.Concurrent;
 using System.Reflection;
-using Airplane = TelemetrySimulator.Airplane;
+using TelemetrySimulator;
 
-ConcurrentDictionary<int, Airplane> activeAirplanes = new();
+ConcurrentDictionary<int, AirplaneSimulator> activeAirplanes = new();
 CancellationTokenSource cts = new();
 string? hubUrl = null;
 string? apiBaseUrl = null;
@@ -31,13 +32,13 @@ catch (Exception ex)
 
 try
 {
-    foreach (var airplaneModel in Shared.Airplane.Airplanes)
+    foreach (var airplaneModel in Airplane.Airplanes)
     {
         Console.WriteLine($"Preparing Airplane {airplaneModel.Id}...");
 
         try
         {
-            var simulatedAirplane = new Airplane(hubUrl!, apiBaseUrl!, airplaneModel.Id);
+            var simulatedAirplane = new AirplaneSimulator(hubUrl!, apiBaseUrl!, airplaneModel.Id);
 
             await simulatedAirplane.InitializeSignalRConnection();
 

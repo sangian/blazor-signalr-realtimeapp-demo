@@ -4,8 +4,8 @@ using Microsoft.AspNetCore.SignalR.Client;
 
 namespace Frontend.Services;
 
-public sealed class LiveTelemetryService(
-    ILogger<LiveTelemetryService> logger,
+public sealed class ChatServerService(
+    ILogger<ChatServerService> logger,
     IConfiguration configuration,
     AuthenticationStateProvider authStateProvider) : IDisposable
 {
@@ -18,7 +18,7 @@ public sealed class LiveTelemetryService(
             if (hubConnection is null)
             {
 
-                var hubUrl = configuration["SignalROptions:LiveTelemetryHubUrl"];
+                var hubUrl = configuration["SignalROptions:ChatServerHubUrl"];
                 var accessToken = await ((CustomAuthenticationStateProvider)authStateProvider).GetAuthToken();
 
                 hubConnection = new HubConnectionBuilder()
@@ -31,7 +31,7 @@ public sealed class LiveTelemetryService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Cannot connect to Live Telemetry hub.");
+            logger.LogError(ex, "Cannot connect to Chat Server hub.");
 
             throw;
         }

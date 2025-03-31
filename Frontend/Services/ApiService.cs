@@ -1,4 +1,4 @@
-﻿using Shared;
+﻿using Shared.Authentication;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -46,7 +46,7 @@ public class ApiService(
     {
         var httpClient = HttpClientFactory.CreateClient("BackendAPI");
 
-        await httpClient.PostAsync($"api/SignalR/airplanes/{airplaneId}/start", 
+        await httpClient.PostAsync($"api/Flight/airplanes/{airplaneId}/start", 
             new StringContent(string.Empty, Encoding.UTF8, "application/json"));
 
     }
@@ -55,7 +55,7 @@ public class ApiService(
     {
         var httpClient = HttpClientFactory.CreateClient("BackendAPI");
 
-        await httpClient.PostAsync($"api/SignalR/airplanes/{airplaneId}/stop", 
+        await httpClient.PostAsync($"api/Flight/airplanes/{airplaneId}/stop", 
             new StringContent(string.Empty, Encoding.UTF8, "application/json"));
 
     }

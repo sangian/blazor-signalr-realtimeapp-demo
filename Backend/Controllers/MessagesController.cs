@@ -8,7 +8,7 @@ using System.Net;
 
 namespace Backend.Controllers
 {
-    [Route("api/chat/[controller]")]
+    [Route("api/Rooms/{roomId}/[controller]")]
     [ApiController]
     [Authorize]
     public sealed class MessagesController(
@@ -18,11 +18,11 @@ namespace Backend.Controllers
         ChatServerService chatServerService) : Controller
     {
         [HttpPost]
-        public async Task<ActionResult<SendMessageResponse>> SendMessageAsync([FromBody] SendMessageRequest request)
+        public async Task<ActionResult<SendMessageResponse>> SendMessageAsync(long roomId, [FromBody] SendMessageRequest request)
         {
             var currentUserName = User.Identity?.Name;
 
-            if (!chatRoomManager.IsMemberInChatRoom(request.RoomId, currentUserName!))
+            if (!chatRoomManager.IsMemberInChatRoom(roomId, currentUserName!))
             {
                 var errorResponse = new SendMessageResponse
                 {
@@ -31,13 +31,13 @@ namespace Backend.Controllers
                     MessageId = request.MessageId,
                     CreatedAt = request.CreatedAt,
                     SentAt = null,
-                    RoomId = request.RoomId,
+                    RoomId = roomId,
                     Sender = currentUserName
                 };
                 return StatusCode((int)HttpStatusCode.Forbidden, errorResponse);
             }
 
-            if (chatMessageManager.IsMessageExists(request.RoomId, request.MessageId))
+            if (chatMessageManager.IsMessageExists(roomId, request.MessageId))
             {
                 var errorResponse = new SendMessageResponse
                 {
@@ -46,7 +46,7 @@ namespace Backend.Controllers
                     MessageId = request.MessageId,
                     CreatedAt = request.CreatedAt,
                     SentAt = null,
-                    RoomId = request.RoomId,
+                    RoomId = roomId,
                     Sender = currentUserName
                 };
                 return StatusCode((int)HttpStatusCode.Conflict, errorResponse);
@@ -55,7 +55,7 @@ namespace Backend.Controllers
             var newMessage = new ChatMessage
             {
                 Id = request.MessageId,
-                RoomId = request.RoomId,
+                RoomId = roomId,
                 Message = request.Message!,
                 CreatedAt = request.CreatedAt,
                 SentAt = DateTime.UtcNow,
@@ -71,7 +71,7 @@ namespace Backend.Controllers
                     MessageId = request.MessageId,
                     CreatedAt = request.CreatedAt,
                     SentAt = null,
-                    RoomId = request.RoomId,
+                    RoomId = roomId,
                     Sender = currentUserName
                 };
                 return StatusCode((int)HttpStatusCode.InternalServerError, errorResponse);
@@ -98,7 +98,7 @@ namespace Backend.Controllers
             });
         }
 
-        [HttpPut("{roomId}/{messageId}/delivered")]
+        [HttpPatch("{messageId}/delivered")]
         public async Task<ActionResult> SetDeliveryReceipt(long roomId, Guid messageId)
         {
             var currentUserName = User.Identity?.Name;
@@ -137,7 +137,7 @@ namespace Backend.Controllers
             return Ok();
         }
 
-        [HttpPut("{roomId}/read")]
+        [HttpPatch("read")]
         public async Task<ActionResult> SetReadReceipt(long roomId)
         {
             var currentUserName = User.Identity?.Name;
@@ -172,7 +172,7 @@ namespace Backend.Controllers
             return Ok();
         }
 
-        [HttpGet("{roomId}")]
+        [HttpGet]
         public ActionResult<GetMessagesResponse> GetMessages(long roomId)
         {
             var currentUserName = User.Identity?.Name;

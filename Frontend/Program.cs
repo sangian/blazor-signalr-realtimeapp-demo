@@ -44,7 +44,11 @@ builder.Services.AddFluentUIComponents();
 
 // Configure Services
 builder.Services.AddBlazoredLocalStorage();
-builder.Services.AddScoped<ApiService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<FlightService>();
+builder.Services.AddScoped<RoomService>();
+builder.Services.AddScoped<Frontend.Services.MessageService>();
+builder.Services.AddScoped<ChatServerService>();
 builder.Services.AddScoped<LiveTelemetryService>();
 
 await builder.Build().RunAsync();

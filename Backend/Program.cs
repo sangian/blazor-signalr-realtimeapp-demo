@@ -130,9 +130,11 @@ app.UseAuthorization();
 app.MapControllers().RequireCors("AllowAll");
 
 var signalRMainPath = app.Configuration["SignalROptions:MainPath"];
+var chatServerHubPath = signalRMainPath + app.Configuration["ChatServerHubOptions:HubPath"];
 var liveTelemetryHubPath = signalRMainPath + app.Configuration["LiveTelemetryHubOptions:HubPath"];
 var telemetryServerHubPath = signalRMainPath + app.Configuration["TelemetryServerHubOptions:HubPath"];
 
+app.MapHub<ChatServerHub>(chatServerHubPath).RequireCors("AllowAll");
 app.MapHub<LiveTelemetryHub>(liveTelemetryHubPath).RequireCors("AllowAll");
 app.MapHub<TelemetryServerHub>(telemetryServerHubPath).RequireCors("AllowAll");
 

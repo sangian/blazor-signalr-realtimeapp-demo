@@ -1,0 +1,133 @@
+﻿@using Shared.ChatServer.ApiDtos
+@implements IDialogContentComponent
+
+@inject IToastService ToastService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject RoomService RoomService
+
+@* Header *@
+<FluentDialogHeader ShowDismiss="true">
+    <FluentStack VerticalAlignment="VerticalAlignment.Center">
+        <FluentIcon Icon="Icons.Regular.Size24.ChatMultiple" />
+        <FluentLabel Typo="Typography.PaneHeader">
+            Create New Chat
+        </FluentLabel>
+    </FluentStack>
+</FluentDialogHeader>
+
+@* Footer *@
+<FluentDialogFooter>
+    <FluentButton Appearance="Appearance.Accent" BackgroundColor="#1A1F71" Color="#FFFFFF" Loading="isCreatingChat" OnClick="@CreateClick">Create</FluentButton>
+    <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelClick">Cancel</FluentButton>
+</FluentDialogFooter>
+
+@* Body *@
+<FluentDialogBody>
+    <EditForm Model="@Content" OnValidSubmit="@HandleCreateNewChat" FormName="newChatForm" @ref="newChatForm">
+        <DataAnnotationsValidator />
+
+        <FluentStack Orientation="Orientation.Vertical">
+            <div style="width: 100%;">
+                <FluentTextField Name="chatName"
+                Id="chatName"
+                @ref="chatNameField"
+                @bind-Value="Content.Name"
+                Placeholder="Enter chat name"
+                Style="width: 100%;"
+                Required />
+                <FluentValidationMessage For="@(() => Content.Name)" />
+            </div>
+            <div style="width: 100%;">
+                <FluentAutocomplete Name="users"
+                Id="users"
+                AutoComplete="off"
+                TOption="string"
+                Items ="@Users"
+                Multiple="true"
+                OptionValue="@(u => u)"
+                OptionText="@(u => u)"
+                OptionStyle="width: 100%;"
+                OnOptionsSearch="@OnSearch"
+                @bind-SelectedOptions="Content.Members"
+                Placeholder="Select chat members"
+                Width="100%"
+                Required/>
+                <FluentValidationMessage For="@(() => Content.Members)" />
+            </div>
+        </FluentStack>
+    </EditForm>
+</FluentDialogBody>
+
+@code {
+    [CascadingParameter]
+    public FluentDialog? Dialog { get; set; }
+
+    [SupplyParameterFromForm]
+    private CreateNewChatDialogModel Content { get; set; } = new();
+
+    private List<string> Users = ["user1", "user2", "user3", "user4", "user5", "user6"];
+
+    private EditForm newChatForm = new();
+    private FluentTextField chatNameField = new();
+
+    private bool isCreatingChat = false;
+    private string currentUserName = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var provider = (CustomAuthenticationStateProvider)AuthStateProvider;
+        currentUserName = await provider.GetAuthenticatedUserName() ?? string.Empty;
+
+        Users.Remove(currentUserName);
+
+        await base.OnInitializedAsync();
+    }
+
+    private void OnSearch(OptionsSearchEventArgs<string> e)
+    {
+        e.Items = Users
+        .Where(i => i.Contains(e.Text, StringComparison.OrdinalIgnoreCase))
+        .OrderBy(i => i);
+    }
+
+    private async Task CreateClick()
+    {
+        await newChatForm.SubmitAsync();
+    }
+
+    private async Task CancelClick()
+    {
+        await Dialog!.CancelAsync();
+    }
+
+    private async Task HandleCreateNewChat()
+    {
+        isCreatingChat = true;
+
+        if (string.IsNullOrEmpty(Content.Name) || Content.Members?.Count() == 0)
+        {
+            ToastService.ShowError("Chat name and members cannot be empty.");
+            isCreatingChat = false;
+            return;
+        }
+
+        var result = await RoomService.CreateRoom(new CreateRoomRequest
+        {
+            Name = Content.Name,
+            Members = new SortedSet<string>(Content.Members!)
+        });
+
+        if (result is not null && result.Success)
+        {
+            ToastService.ShowSuccess("Chat room created successfully.");
+        }
+        else
+        {
+            ToastService.ShowError("Cannot create chat room.");
+        }
+
+        isCreatingChat = false;
+
+        await Dialog!.CloseAsync();
+    }
+}

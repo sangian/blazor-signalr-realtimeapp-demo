@@ -6,7 +6,7 @@
 @using Shared.Authentication
 
 @inject NavigationManager NavigationManager
-@inject ApiService ApiService
+@inject AuthService AuthService
 @inject IToastService ToastService
 @inject AuthenticationStateProvider AuthStateProvider
 
@@ -14,7 +14,7 @@
 
 <FluentLayout Style="padding: 20px 20px;">
     <h4>Welcome to Realtime Apps</h4>
-    <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin" FormName="loginForm" @ref="loginForm">
+    <EditForm Model="loginModel" OnValidSubmit="HandleLogin" FormName="loginForm" @ref="loginForm">
         <DataAnnotationsValidator />
 
         <FluentStack Orientation="Orientation.Vertical">
@@ -83,7 +83,7 @@
             return;
         }
 
-        var accessToken = await ApiService.GetAccessToken(new TokenRequest
+        var accessToken = await AuthService.Login(new TokenRequest
         {
             Username = loginModel.Username,
             Password = loginModel.Password
@@ -94,7 +94,7 @@
         {
             var customProvider = (CustomAuthenticationStateProvider)AuthStateProvider;
             await customProvider.NotifyUserLogin(accessToken!);
-            NavigationManager.NavigateTo("/", true);
+            NavigationManager.NavigateTo("/tracker");
         }
         else
         {

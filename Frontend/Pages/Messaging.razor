@@ -1,0 +1,187 @@
+﻿@page "/messaging"
+@using Shared.ChatServer.HubEvents
+@attribute [Authorize]
+
+<PageTitle>Realtime Apps | Messaging</PageTitle>
+
+@inject ILogger<Messaging> Logger
+@inject IToastService ToastService
+@inject IDialogService DialogService
+@inject IJSRuntime JSRuntime
+@inject ChatServerService ChatServerService
+@inject RoomService RoomService
+
+<div class="chat-app">
+    <div class="chat-room-list">
+        <FluentButton Appearance="Appearance.Accent"
+                      BackgroundColor="#1A1F71"
+                      Color="#FFFFFF"
+                      Style="width: 100%; margin-bottom: 10px;"
+                      OnClick="@OpenCreateNewChatDialog"
+                      Disabled="@isLoading">
+            <div style="display: flex; justify-content: center; align-items: center; grid-gap: 5px;">
+                <FluentIcon Icon="@(Icons.Filled.Size16.Add)" Color="Color.Custom" CustomColor="#ffffff" />
+                Create New Chat
+            </div>
+        </FluentButton>
+        <div class="room-list">
+            @if (rooms.Count > 0)
+            {
+                foreach (var room in rooms)
+                {
+                    var roomItemClass = "room-item";
+
+                    if (selectedRoom != null && room.Id == selectedRoom.Id)
+                    {
+                        roomItemClass += " selected";
+                    }
+
+                    <div class="@roomItemClass" @onclick="@(() => SelectRoom(room))">
+                        <FluentIcon Icon="@(Icons.Regular.Size16.ChatMultiple)" />
+                        <span>@room.Name</span>
+                    </div>
+                }
+            }
+            else
+            {
+                <!-- Default view when no room is available -->
+                <p>No chat rooms available.</p>
+            }
+        </div>
+    </div>
+    <div class="chat-message-list">
+        <!-- Default view when no room is selected -->
+        <div class="default-view">
+            <p>Select a chat room to start messaging.</p>
+        </div>
+        <!-- Chat room selected view -->
+        <div class="chat-room-view" style="display: none;">
+            <div class="chat-room-header">
+                <h2>Chat Room Name</h2>
+                <p>Members: User1, User2, User3</p>
+            </div>
+            <div class="messages">
+                <!-- Messages will be displayed here -->
+                <div class="message other">Hello!</div>
+                <div class="message self">Hi there!</div>
+            </div>
+            <div class="message-input">
+                <textarea placeholder="Type your message..."></textarea>
+                <button class="send-btn">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool isLoading = false;
+    private HubConnection? hubConnection;
+    private ICollection<RoomModel> rooms = [];
+    private RoomModel? selectedRoom;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+
+        try
+        {
+            var rooms = await RoomService.GetRooms();
+
+            RoomManager.AddRooms(rooms.Select(r => new RoomModel
+            {
+                Id = r.Id.GetValueOrDefault(),
+                Name = r.Name!,
+                Members = r.Members!
+            }));
+
+            UpdateRoomList();
+            RoomManager.RoomsChanged += OnRoomsChanged;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error while getting rooms.");
+            ToastService.ShowError("Error while getting rooms.");
+        }
+
+        try
+        {
+            hubConnection = await ChatServerService.InitalizeHubConnection();
+
+            hubConnection!.Reconnecting += OnReconnecting!;
+            hubConnection!.Reconnected += OnReconnected!;
+            hubConnection.Closed += OnClosedPermanently!;
+
+            await ConnectToSignalRHub();
+
+            hubConnection.On<ChatRoomCreatedEvent>(Constants.CLIENT_CHAT_ROOM_CREATED, HandleChatRoomCreated);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Cannot connect to Chat hub.");
+
+            ToastService.ShowError("Cannot connect to Chat hub.");
+        }
+
+        isLoading = false;
+    }
+
+    private void UpdateRoomList()
+    {
+        rooms = RoomManager.GetRooms();
+        StateHasChanged();
+    }
+
+    private void OnRoomsChanged()
+    {
+        UpdateRoomList();
+    }
+
+    private async Task ConnectToSignalRHub()
+    {
+        await hubConnection!.StartAsync();
+    }
+
+    private Task OnReconnecting(Exception error)
+    {
+        ToastService.ShowError("Disconnected from Chat hub.");
+        return Task.CompletedTask;
+    }
+
+    private Task OnReconnected(string connectionId)
+    {
+        ToastService.ShowInfo("Reconnected to Chat hub.");
+        return Task.CompletedTask;
+    }
+
+    private async Task OnClosedPermanently(Exception error)
+    {
+        await Task.Delay(5000);
+        await ConnectToSignalRHub();
+    }
+
+    private async Task HandleChatRoomCreated(ChatRoomCreatedEvent @event)
+    {
+        RoomManager.AddOrUpdateRoom(new RoomModel
+        {
+            Id = @event.Id,
+            Name = @event.Name,
+            Members = @event.Members!
+        });
+
+        await JSRuntime.InvokeVoidAsync("playAlertSound");
+    }
+
+    private async Task OpenCreateNewChatDialog()
+    {
+        await DialogService.ShowDialogAsync<CreateNewChatDialog>(new DialogParameters
+        {
+                Width = "400px"
+        });
+    }
+
+    private void SelectRoom(RoomModel room)
+    {
+        selectedRoom = room;
+        StateHasChanged();
+    }
+}

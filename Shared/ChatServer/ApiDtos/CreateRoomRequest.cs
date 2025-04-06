@@ -11,6 +11,6 @@ public record CreateRoomRequest
 
     [JsonPropertyName("members")]
     [Required(ErrorMessage = "Room members is required")]
-    [MinLength(2, ErrorMessage = "Room must have at least 2 members")]
+    [MinLength(1, ErrorMessage = "Room must have at least 1 member")]
     public SortedSet<string>? Members { get; init; }
 }

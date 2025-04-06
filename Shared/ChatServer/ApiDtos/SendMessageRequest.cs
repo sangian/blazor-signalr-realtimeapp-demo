@@ -16,8 +16,4 @@ public record SendMessageRequest
     [JsonPropertyName("createdAt")]
     [Required(ErrorMessage = "CreatedAt is required")]
     public DateTime CreatedAt { get; init; }
-
-    [JsonPropertyName("roomId")]
-    [Required(ErrorMessage = "RoomId is required")]
-    public long RoomId { get; init; }
 }

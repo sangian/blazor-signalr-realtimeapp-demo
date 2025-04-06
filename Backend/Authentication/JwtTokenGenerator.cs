@@ -24,6 +24,7 @@ public sealed class JwtTokenGenerator(IConfiguration configuration)
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, username), // User identifier
+            new Claim(ClaimTypes.Name, username), // User identifier
             new Claim(ClaimTypes.Role, role),  // Role
         };
 

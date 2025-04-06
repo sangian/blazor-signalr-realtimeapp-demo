@@ -8,7 +8,7 @@ using System.Net;
 
 namespace Backend.Controllers
 {
-    [Route("api/chat/[controller]")]
+    [Route("api/[controller]")]
     [ApiController]
     [Authorize]
     public class RoomsController(
@@ -18,12 +18,16 @@ namespace Backend.Controllers
         [HttpPost]
         public async Task<ActionResult<CreateRoomResponse>> CreateRoomAsync([FromBody] CreateRoomRequest request)
         {
+            var currentUserName = User.Identity?.Name;
+
             var newRoom = new ChatRoom
             {
                 Id = chatRoomManager.GetNextChatRoomId(),
                 Name = request.Name,
                 Members = request.Members!
             };
+
+            newRoom.Members.Add(currentUserName!);
 
             if (!chatRoomManager.CreateChatRoom(newRoom))
             {
@@ -54,7 +58,7 @@ namespace Backend.Controllers
             });
         }
 
-        [HttpPost("{roomId}/member")]
+        [HttpPost("{roomId}/members")]
         public async Task<ActionResult<AddRoomMemberResponse>> AddMemberAsync(long roomId, [FromBody] AddRoomMemberRequest request)
         {
             var currentUserName = User.Identity?.Name;
@@ -106,19 +110,20 @@ namespace Backend.Controllers
             });
         }
 
-        [HttpDelete("{roomId}/member")]
-        public async Task<ActionResult<AddRoomMemberResponse>> RemoveMemberAsync(long roomId, [FromBody] AddRoomMemberRequest request)
+        [HttpDelete("{roomId}/members/{userId}")]
+        public async Task<ActionResult<RemoveRoomMemberResponse>> RemoveMemberAsync(long roomId, string userId)
+
         {
             var currentUserName = User.Identity?.Name;
 
             if (!chatRoomManager.IsMemberInChatRoom(roomId, currentUserName!))
             {
-                var errorResponse = new AddRoomMemberResponse
+                var errorResponse = new RemoveRoomMemberResponse
                 {
                     Success = false,
                     ErrorMessage = "You are not a member of the chat room",
                     RoomId = roomId,
-                    UserId = request.UserId,
+                    UserId = userId,
                 };
                 return StatusCode((int)HttpStatusCode.Forbidden, errorResponse);
             }
@@ -126,35 +131,35 @@ namespace Backend.Controllers
             var room = chatRoomManager.GetChatRoom(roomId);
             if (room is null)
             {
-                var errorResponse = new AddRoomMemberResponse
+                var errorResponse = new RemoveRoomMemberResponse
                 {
                     Success = false,
                     ErrorMessage = "Room not found",
                     RoomId = roomId,
-                    UserId = request.UserId,
+                    UserId = userId,
                 };
                 return StatusCode((int)HttpStatusCode.NotFound, errorResponse);
             }
 
-            if (!chatRoomManager.RemoveMemberFromChatRoom(roomId, request.UserId))
+            if (!chatRoomManager.RemoveMemberFromChatRoom(roomId, userId))
             {
-                var errorResponse = new AddRoomMemberResponse
+                var errorResponse = new RemoveRoomMemberResponse
                 {
                     Success = false,
                     ErrorMessage = "Cannot remove member from room",
                     RoomId = roomId,
-                    UserId = request.UserId,
+                    UserId = userId,
                 };
                 return StatusCode((int)HttpStatusCode.InternalServerError, errorResponse);
             }
 
-            await chatServerService.NotifyChatRoomMemberRemoved(roomId, request.UserId);
+            await chatServerService.NotifyChatRoomMemberRemoved(roomId, userId);
 
-            return Ok(new AddRoomMemberResponse
+            return Ok(new RemoveRoomMemberResponse
             {
                 Success = true,
                 RoomId = roomId,
-                UserId = request.UserId,
+                UserId = userId,
             });
         }
 

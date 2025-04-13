@@ -1,6 +1,6 @@
 ﻿using Backend.Authentication;
 using Microsoft.AspNetCore.Mvc;
-using Shared;
+using Shared.Authentication;
 
 namespace Backend.Controllers
 {
@@ -25,7 +25,7 @@ namespace Backend.Controllers
         };
 
 
-        [HttpPost("token", Name = nameof(GetAuthToken))]
+        [HttpPost("token")]
         public ActionResult<TokenResponse> GetAuthToken([FromBody] TokenRequest request)
         {
             if (request is not null &&

@@ -8,6 +8,7 @@ using System.Text;
 using Blazored.LocalStorage;
 using Frontend.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
+using Ljbc1994.Blazor.IntersectionObserver;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
@@ -42,9 +43,16 @@ builder.Services.AddBlazorGoogleMaps(apiKey!);
 // Configure Fluent UI Components
 builder.Services.AddFluentUIComponents();
 
-// Configure Services
+// Configure other services
 builder.Services.AddBlazoredLocalStorage();
-builder.Services.AddScoped<ApiService>();
+builder.Services.AddIntersectionObserver();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<FlightService>();
+builder.Services.AddScoped<RoomService>();
+builder.Services.AddScoped<Frontend.Services.MessageService>();
+builder.Services.AddScoped<ChatServerService>();
 builder.Services.AddScoped<LiveTelemetryService>();
+
+builder.Services.AddSingleton<RoomManager>();
 
 await builder.Build().RunAsync();

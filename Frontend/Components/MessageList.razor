@@ -1,0 +1,228 @@
+@using Ljbc1994.Blazor.IntersectionObserver.API
+@using Ljbc1994.Blazor.IntersectionObserver.Components
+@using Shared.ChatServer.HubEvents
+
+@implements IDisposable
+
+@inject IJSRuntime JSRuntime
+@inject IToastService ToastService
+@inject RoomManager RoomManager
+@inject Services.MessageService MessageService
+
+@if (SelectedRoom is null)
+{
+    <!-- Default view when no room is selected -->
+    <div class="default-view">
+        <FluentIcon Icon="@(Icons.Regular.Size32.ChatMultiple)" />
+        <p>Select a chat room to start messaging.</p>
+    </div>
+}
+else
+{
+    <!-- Chat room selected view -->
+    <div class="chat-room-view">
+        <div class="chat-room-header">
+            <div style="font-size: 18px; font-weight: bold;">@SelectedRoom.Name</div>
+            <div>@(string.Join(", ", SelectedRoom.Members))</div>
+        </div>
+        <div class="messages">
+            <!-- Messages will be displayed here -->
+            @if (IsLoadingRoom)
+            {
+                <div class="loading-indicator">
+                    <FluentProgressRing></FluentProgressRing>
+                </div>
+            }
+            else
+            {
+                @foreach (var message in GetMessages())
+                {
+                    var messageClass = message.IsSelfMessage(CurrentUser) ? "self" : "other";
+                    <IntersectionObserve Once=@true OnChange="@((e) => OnIntersectingChanged(e, message))">
+                        <div class="message-container @messageClass" @ref="context.Ref.Current">
+                            <div class="message-sender">@message.Sender</div>
+                            <div class="message-text">
+                                <div>@message.Message</div>
+                                <div class="message-timestamp">@message.CreatedAt</div>
+                            </div>
+                            <MessageStatus Message="@message" CurrentUser="@CurrentUser" MembersCount="@SelectedRoom.Members.Count" />
+                        </div>
+                    </IntersectionObserve>
+                }
+            }            
+        </div>
+        <div class="typing-indicator">
+            @if (!string.IsNullOrEmpty(OtherMembersTypingIndicator))
+            {
+                <div>@OtherMembersTypingIndicator</div>
+            }
+        </div>
+        <div class="message-input-container">
+            <div class="message-input">
+                <textarea id="messageTextArea"
+                class="message-text-area"
+                @bind="MessageText"
+                @ref="MessageTextArea"
+                @oninput="@HandleUserTyping"
+                placeholder="Type your message..."></textarea>
+
+                <FluentButton Appearance="Appearance.Accent"
+                BackgroundColor="#1A1F71"
+                Color="#FFFFFF"
+                Style="height: 100%;width: 48px;"
+                OnClick="@SendMessage"
+                Loading="@IsSending">
+                    <FluentIcon Icon="@(Icons.Regular.Size24.Send)" Color="Color.Custom" CustomColor="#ffffff" />
+                </FluentButton>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public RoomModel? SelectedRoom { get; set; }
+
+    [Parameter, EditorRequired]
+    public bool IsLoadingRoom { get; set; } = false;
+
+    [Parameter, EditorRequired]
+    public string CurrentUser { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public EventCallback<string> OnSendMessage { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<bool> OnUserTyping { get; set; }
+
+    [Parameter, EditorRequired]
+    public string OtherMembersTypingIndicator { get; set; } = string.Empty;
+
+    private string MessageText { get; set; } = string.Empty;
+    private bool IsSending { get; set; } = false;
+    private ElementReference MessageTextArea = new();
+    private bool IsMessageTextAreaRendered { get; set; } = false;
+    private DotNetObjectReference<MessageList>? DotNetRef;
+
+    protected override void OnInitialized()
+    {
+        RoomManager.MessageSent += OnMessageSent;
+        RoomManager.MessageDelivered += OnMessageDelivered;
+        RoomManager.MessagesRead += OnMessagesRead;
+
+        base.OnInitialized();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            DotNetRef = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("setupGlobalKeydownListener", "messageTextArea", DotNetRef);
+        }
+
+        if (!firstRender && !IsMessageTextAreaRendered && SelectedRoom != null)
+        {
+            IsMessageTextAreaRendered = true;
+        }
+
+        if (IsMessageTextAreaRendered)
+        {
+            await MessageTextArea.FocusAsync();
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private void OnMessageSent(long roomId, MessageModel message)
+    {
+        if (SelectedRoom?.Id == roomId && message.Sender == CurrentUser)
+        {
+            StateHasChanged();
+        }
+    }
+
+    private void OnMessageDelivered(long roomId, MessageDeliveryReceiptModel message)
+    {
+        if (SelectedRoom?.Id == roomId)
+        {
+            StateHasChanged();
+        }
+    }
+
+    private void OnMessagesRead(long roomId)
+    {
+        if (SelectedRoom?.Id == roomId)
+        {
+            StateHasChanged();
+        }
+    }
+
+    private IReadOnlyCollection<MessageModel> GetMessages()
+    {
+        if (SelectedRoom != null)
+        {
+            return SelectedRoom.Messages.Values.AsReadOnly();
+        }
+        return [];
+    }
+
+    private async Task HandleUserTyping(ChangeEventArgs e)
+    {
+        if (e.Value is string inputText)
+        {
+            await OnUserTyping.InvokeAsync(true);
+        }
+    }
+
+    [JSInvokable]
+    public void UpdateMessageText(string value)
+    {
+        MessageText = value;
+    }
+
+    [JSInvokable]
+    public async Task SendMessage()
+    {
+        if (SelectedRoom != null && !string.IsNullOrWhiteSpace(MessageText))
+        {
+            IsSending = true;
+            var newMessage = new MessageModel
+            {
+                Sender = CurrentUser,
+                Message = MessageText,
+                CreatedAt = DateTime.UtcNow
+            };
+            await OnSendMessage.InvokeAsync(MessageText);
+            MessageText = string.Empty; // Clear the input after sending
+            IsSending = false;
+            await MessageTextArea.FocusAsync();
+        }
+    }
+
+    private async Task OnIntersectingChanged(IntersectionObserverEntry entry, MessageModel message)
+    {
+        if (!message.IsSelfMessage(CurrentUser) 
+            && !message.ReadReceipts.Any(rr => rr!.Recipient!.Equals(CurrentUser))
+            && entry.IsVisible)
+        {
+            await MarkMessagesAsRead();
+        }
+    }
+
+    private async Task MarkMessagesAsRead()
+    {
+        if (SelectedRoom != null)
+        {
+            await MessageService.MarkMessagesAsRead(SelectedRoom.Id);
+        }
+    }
+
+    public void Dispose()
+    {
+        DotNetRef?.Dispose();
+        RoomManager.MessageSent -= OnMessageSent;
+        RoomManager.MessageDelivered -= OnMessageDelivered;
+        RoomManager.MessagesRead -= OnMessagesRead;
+    }
+}

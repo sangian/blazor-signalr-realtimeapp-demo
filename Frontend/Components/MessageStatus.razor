@@ -1,0 +1,45 @@
+﻿@if (Message is not null && Message.IsSelfMessage(CurrentUser))
+{
+    <div class="message-status">
+        @if (Message.IsRead(MembersCount))
+        {
+            <FluentIcon Icon="@(Icons.Filled.Size16.Checkmark)"
+                        Color="Color.Custom"
+                        CustomColor="green"
+                        Style="position: absolute; top: 0; left: -16px;" />
+            <FluentIcon Icon="@(Icons.Filled.Size16.Checkmark)"
+                        Color="Color.Custom"
+                        CustomColor="green"
+                        Style="position: absolute; top: 0px; left: -21px;" />
+        }
+        else if (Message.IsDelivered(MembersCount))
+        {
+            <FluentIcon Icon="@(Icons.Filled.Size16.Checkmark)"
+                        Color="Color.Custom"
+                        CustomColor="gray"
+                        Style="position: absolute; top: 0; left: -16px;" />
+            <FluentIcon Icon="@(Icons.Filled.Size16.Checkmark)"
+                        Color="Color.Custom"
+                        CustomColor="gray"
+                        Style="position: absolute; top: 0px; left: -21px;" />
+        }
+        else if (Message.IsSent)
+        {
+            <FluentIcon Icon="@(Icons.Filled.Size16.Checkmark)"
+                        Color="Color.Custom"
+                        CustomColor="gray"
+                        Style="position: absolute; top: 0; left: -16px;" />
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public MessageModel? Message { get; set; }
+
+    [Parameter, EditorRequired]
+    public string CurrentUser { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public int MembersCount { get; set; } = 0;
+}

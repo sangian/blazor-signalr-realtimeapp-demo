@@ -1,15 +1,15 @@
-﻿using Shared;
-using System.Net.Http.Json;
-using System.Text;
+﻿using Shared.Authentication;
 using System.Text.Json;
+using System.Text;
+using System.Net.Http.Json;
 
 namespace Frontend.Services;
 
-public class ApiService(
+public sealed class AuthService(
     IHttpClientFactory HttpClientFactory,
-    ILogger<ApiService> logger)
+    ILogger<FlightService> logger)
 {
-    public async Task<string?> GetAccessToken(TokenRequest tokenRequest)
+    public async Task<string?> Login(TokenRequest tokenRequest)
     {
         try
         {
@@ -40,23 +40,5 @@ public class ApiService(
 
             return null;
         }
-    }
-
-    public async Task StartAirplane(int airplaneId)
-    {
-        var httpClient = HttpClientFactory.CreateClient("BackendAPI");
-
-        await httpClient.PostAsync($"api/SignalR/airplanes/{airplaneId}/start", 
-            new StringContent(string.Empty, Encoding.UTF8, "application/json"));
-
-    }
-
-    public async Task StopAirplane(int airplaneId)
-    {
-        var httpClient = HttpClientFactory.CreateClient("BackendAPI");
-
-        await httpClient.PostAsync($"api/SignalR/airplanes/{airplaneId}/stop", 
-            new StringContent(string.Empty, Encoding.UTF8, "application/json"));
-
     }
 }

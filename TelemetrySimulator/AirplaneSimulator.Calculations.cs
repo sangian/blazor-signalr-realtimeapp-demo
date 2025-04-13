@@ -1,8 +1,8 @@
-using City = Shared.City;
+using City = Shared.TelemetryServer.City;
 
 namespace TelemetrySimulator;
 
-public sealed partial class Airplane
+public sealed partial class AirplaneSimulator
 {
     private const double MinSimulationDistanceKm = 11000.0;
     private const int MaxSimulationDurationSeconds = 300;

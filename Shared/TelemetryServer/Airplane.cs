@@ -1,4 +1,4 @@
-﻿namespace Shared;
+﻿namespace Shared.TelemetryServer;
 
 public record Airplane
 {
@@ -7,6 +7,7 @@ public record Airplane
     public string? Model { get; init; }
     public string? Manufacturer { get; init; }
     public string? Color { get; init; }
+
 
     public static readonly IReadOnlyCollection<Airplane> Airplanes =
     [
@@ -17,5 +18,4 @@ public record Airplane
         new() { Id = 5, Name = "PK-MNO", Model = "A320", Manufacturer = "Airbus", Color = "#00FFFF" }, // Bright Cyan
         new() { Id = 6, Name = "PK-PQR", Model = "A330neo", Manufacturer = "Airbus", Color = "#FF00FF" }  // Bright Pink
     ];
-
 }

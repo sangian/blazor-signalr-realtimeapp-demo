@@ -5,7 +5,9 @@ using System.Text.Json;
 
 namespace Frontend.Authentication
 {
-    public sealed class CustomAuthenticationStateProvider(ILocalStorageService localStorage) : AuthenticationStateProvider
+    public sealed class CustomAuthenticationStateProvider(
+        ILogger<CustomAuthenticationStateProvider> logger,
+        ILocalStorageService localStorage) : AuthenticationStateProvider
     {
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
@@ -20,6 +22,22 @@ namespace Frontend.Authentication
             return new AuthenticationState(user);
         }
 
+        public async Task<string?> GetAuthenticatedUserName()
+        {
+            var authState = await GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            //logger.LogInformation("Identity: " + JsonSerializer.Serialize(user.Identity));
+
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                var nameClaim = user.Claims.FirstOrDefault(c => c.Type == "nameid");
+                return nameClaim?.Value;
+            }
+
+            return null;
+        }
+
         private IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
         {
             var claims = new List<Claim>();
@@ -31,6 +49,8 @@ namespace Frontend.Authentication
             {
                 claims.Add(new Claim(kvp.Key, kvp.Value.ToString()!));
             }
+
+            //logger.LogInformation("Claims: " + JsonSerializer.Serialize(claims));
 
             return claims;
         }

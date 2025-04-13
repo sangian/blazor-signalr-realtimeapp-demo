@@ -7,11 +7,11 @@ namespace Backend.Controllers;
 [Route("api/[controller]")]
 [ApiController]
 [Authorize]
-public sealed class SignalRController(
+public sealed class FlightController(
     TelemetryServerService telemetryServerService,
     TelemetryServerUserManager telemetryServerUserManager) : ControllerBase
 {
-    [HttpPost("airplanes/{airplaneId}/start", Name = nameof(StartAirplane))]
+    [HttpPost("airplanes/{airplaneId}/start")]
     public async Task<IActionResult> StartAirplane(int airplaneId)
     {
         await telemetryServerService.StartRequest(airplaneId);
@@ -19,7 +19,7 @@ public sealed class SignalRController(
         return Ok();
     }
 
-    [HttpPost("airplanes/{airplaneId}/stop", Name = nameof(StopAirplane))]
+    [HttpPost("airplanes/{airplaneId}/stop")]
     public async Task<IActionResult> StopAirplane(int airplaneId)
     {
         await telemetryServerService.StopRequest(airplaneId);
@@ -27,7 +27,7 @@ public sealed class SignalRController(
         return Ok();
     }
 
-    [HttpPost("airplanes/{airplaneId}/groups/{groupName}", Name = nameof(AddToGroup))]
+    [HttpPost("airplanes/{airplaneId}/groups/{groupName}")]
     public async Task<IActionResult> AddToGroup(int airplaneId, string groupName)
     {
         var userId = telemetryServerService.GetUserId(airplaneId);
@@ -36,7 +36,7 @@ public sealed class SignalRController(
         return Ok();
     }
 
-    [HttpDelete("airplanes/{airplaneId}/groups/{groupName}", Name = nameof(RemoveFromGroup))]
+    [HttpDelete("airplanes/{airplaneId}/groups/{groupName}")]
     public async Task<IActionResult> RemoveFromGroup(int airplaneId, string groupName)
     {
         var userId = telemetryServerService.GetUserId(airplaneId);
@@ -52,7 +52,7 @@ public sealed class SignalRController(
     }
 
 
-    [HttpPost("connections/{connectionId}/ping", Name = nameof(PingConnection))]
+    [HttpPost("connections/{connectionId}/ping")]
     public async Task<IActionResult> PingConnection(string connectionId)
     {
         await telemetryServerService.PingConnection(connectionId);
@@ -60,7 +60,7 @@ public sealed class SignalRController(
         return Ok();
     }
 
-    [HttpPost("connections/ping", Name = nameof(PingAll))]
+    [HttpPost("connections/ping")]
     public async Task<IActionResult> PingAll()
     {
         await telemetryServerService.PingAll();
@@ -68,7 +68,7 @@ public sealed class SignalRController(
         return Ok();
     }
 
-    [HttpPost("users/{userId}/ping", Name = nameof(PingUser))]
+    [HttpPost("users/{userId}/ping")]
     public async Task<IActionResult> PingUser(string userId)
     {
         await telemetryServerService.PingUser(userId);
@@ -76,7 +76,7 @@ public sealed class SignalRController(
         return Ok();
     }
 
-    [HttpPost("groups/{groupName}/ping", Name = nameof(PingGroup))]
+    [HttpPost("groups/{groupName}/ping")]
     public async Task<IActionResult> PingGroup(string groupName)
     {
         await telemetryServerService.PingGroup(groupName);

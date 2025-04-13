@@ -1,7 +1,7 @@
 ﻿using Backend.LiveTelemetry;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
-using Shared;
+using Shared.TelemetryServer;
 using System.Text.Json;
 using System.Threading.Channels;
 

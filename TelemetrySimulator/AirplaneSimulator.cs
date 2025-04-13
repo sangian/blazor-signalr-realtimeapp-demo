@@ -4,10 +4,12 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text;
 using System.Threading.Channels;
+using Shared.TelemetryServer;
+using Shared.Authentication;
 
 namespace TelemetrySimulator;
 
-public sealed partial class Airplane(string hubUrl, string apiBaseUrl, int airplaneId) : IDisposable
+public sealed partial class AirplaneSimulator(string hubUrl, string apiBaseUrl, int airplaneId) : IDisposable
 {
     private HttpClient? apiClient;
     private HubConnection? connection;
@@ -267,7 +269,7 @@ public sealed partial class Airplane(string hubUrl, string apiBaseUrl, int airpl
         {
             try
             {
-                var majorCities = City.GetMajorCities();
+                var majorCities = City.MajorCities;
 
                 var (sourceCity, destinationCity) = SelectSourceAndDestination(majorCities);
 
@@ -397,7 +399,7 @@ public sealed partial class Airplane(string hubUrl, string apiBaseUrl, int airpl
         }
     }
 
-    ~Airplane()
+    ~AirplaneSimulator()
     {
         Dispose(false);
     }

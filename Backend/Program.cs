@@ -1,4 +1,5 @@
 using Backend.Authentication;
+using Backend.ChatServer;
 using Backend.LiveTelemetry;
 using Backend.TelemetryServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -10,10 +11,17 @@ var builder = WebApplication.CreateBuilder(args);
 
 var configuration = builder.Configuration;
 
+builder.Services.AddSingleton<ChatServerUserManager>();
+builder.Services.AddSingleton<ChatRoomManager>();
+builder.Services.AddSingleton<ChatMessageManager>();
+builder.Services.AddSingleton<ChatMessageReceiptManager>();
+
 builder.Services.AddSingleton<TelemetryServerUserManager>();
 builder.Services.AddSingleton<StreamChannelManager>();
+
 builder.Services.AddSingleton<JwtTokenGenerator>();
 
+builder.Services.AddTransient<ChatServerService>();
 builder.Services.AddTransient<LiveTelemetryService>();
 builder.Services.AddTransient<TelemetryServerService>();
 
@@ -122,9 +130,11 @@ app.UseAuthorization();
 app.MapControllers().RequireCors("AllowAll");
 
 var signalRMainPath = app.Configuration["SignalROptions:MainPath"];
+var chatServerHubPath = signalRMainPath + app.Configuration["ChatServerHubOptions:HubPath"];
 var liveTelemetryHubPath = signalRMainPath + app.Configuration["LiveTelemetryHubOptions:HubPath"];
 var telemetryServerHubPath = signalRMainPath + app.Configuration["TelemetryServerHubOptions:HubPath"];
 
+app.MapHub<ChatServerHub>(chatServerHubPath).RequireCors("AllowAll");
 app.MapHub<LiveTelemetryHub>(liveTelemetryHubPath).RequireCors("AllowAll");
 app.MapHub<TelemetryServerHub>(telemetryServerHubPath).RequireCors("AllowAll");
 

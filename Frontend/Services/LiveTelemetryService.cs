@@ -2,49 +2,48 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.SignalR.Client;
 
-namespace Frontend.Services
+namespace Frontend.Services;
+
+public sealed class LiveTelemetryService(
+    ILogger<LiveTelemetryService> logger,
+    IConfiguration configuration,
+    AuthenticationStateProvider authStateProvider) : IDisposable
 {
-    public sealed class LiveTelemetryService(
-        ILogger<LiveTelemetryService> logger,
-        IConfiguration configuration,
-        AuthenticationStateProvider authStateProvider) : IDisposable
+    private HubConnection? hubConnection;
+
+    public async Task<HubConnection?> InitalizeHubConnection()
     {
-        private HubConnection? hubConnection;
-
-        public async Task<HubConnection?> InitalizeHubConnection()
+        try
         {
-            try
+            if (hubConnection is null)
             {
-                if (hubConnection is null)
-                {
 
-                    var hubUrl = configuration["SignalROptions:HubUrl"];
-                    var accessToken = await ((CustomAuthenticationStateProvider)authStateProvider).GetAuthToken();
+                var hubUrl = configuration["SignalROptions:LiveTelemetryHubUrl"];
+                var accessToken = await ((CustomAuthenticationStateProvider)authStateProvider).GetAuthToken();
 
-                    hubConnection = new HubConnectionBuilder()
-                        .WithUrl(new Uri(hubUrl!), o => o.AccessTokenProvider = () => Task.FromResult(accessToken))
-                        .WithAutomaticReconnect()
-                        .Build();
-                }
-
-                return hubConnection;
+                hubConnection = new HubConnectionBuilder()
+                    .WithUrl(new Uri(hubUrl!), o => o.AccessTokenProvider = () => Task.FromResult(accessToken))
+                    .WithAutomaticReconnect()
+                    .Build();
             }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Cannot connect to SignalR hub.");
 
-                throw;
-            }
+            return hubConnection;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Cannot connect to Live Telemetry hub.");
+
+            throw;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (hubConnection is not null)
+        {
+            hubConnection.DisposeAsync().AsTask().Wait();
         }
 
-        public void Dispose()
-        {
-            if (hubConnection is not null)
-            {
-                hubConnection.DisposeAsync().AsTask().Wait();
-            }
-
-            GC.SuppressFinalize(this);
-        }
+        GC.SuppressFinalize(this);
     }
 }

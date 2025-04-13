@@ -1,5 +1,4 @@
 ﻿@using System.ComponentModel.DataAnnotations
-@using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
 
 @inherits LayoutComponentBase
 
@@ -10,16 +9,43 @@
     <FluentHeader Style="background-color: #1A1F71;">
         <FluentStack Orientation="Orientation.Horizontal" Style="justify-content: space-between; align-items: center;">
             <div style="display: flex; grid-gap: 10px;">
-                <FluentIcon Icon="@(Icons.Filled.Size24.Airplane)" Color="Color.Custom" CustomColor="#ffffff" Style="transform: rotate(-45deg)" />
-                Flight Tracker
+                @if (IsMessagingPage())
+                {
+                    <FluentIcon Icon="Icons.Regular.Size24.ChatMultiple" Color="Color.Custom" CustomColor="#ffffff" />
+                    <span>Messaging</span>
+                }
+                else
+                {
+                    <FluentIcon Icon="Icons.Regular.Size24.Airplane" Color="Color.Custom" CustomColor="#ffffff" Style="transform: rotate(-45deg)" />
+                    <span>Flight Tracker</span>
+                }
             </div>
             <AuthorizeView>
                 <Authorized>
-                    <div>
+                    <div style="display: flex; grid-gap: 10px;">
+                        @if (!IsMessagingPage())
+                        {
+                            <FluentButton Appearance="Appearance.Outline" BackgroundColor="transparent" Color="white" OnClick="GoToMessaging">
+                                <div style="display: flex; justify-content: center; align-items: center; grid-gap: 5px;">
+                                    <FluentIcon Icon="@(Icons.Regular.Size20.ChatMultiple)" Color="Color.Custom" CustomColor="#ffffff" />
+                                    Messaging
+                                </div>
+                            </FluentButton>
+                        }
+                        else
+                        {
+                            <FluentButton Appearance="Appearance.Outline" BackgroundColor="transparent" Color="white" OnClick="GoToFlightTracker">
+                                <div style="display: flex; justify-content: center; align-items: center; grid-gap: 5px;">
+                                    <FluentIcon Icon="@(Icons.Regular.Size20.Airplane)" Color="Color.Custom" CustomColor="#ffffff"  Style="transform: rotate(-45deg)" />
+                                    Flight Tracker
+                                </div>
+                            </FluentButton>
+                        }
+
                         <FluentButton Appearance="Appearance.Outline" BackgroundColor="transparent" Color="white" OnClick="Logout">
                             <div style="display: flex; justify-content: center; align-items: center; grid-gap: 5px;">
                                 <FluentIcon Icon="@(Icons.Filled.Size20.ArrowExit)" Color="Color.Custom" CustomColor="#ffffff" />
-                                Logout
+                                Logout (@userName)
                             </div>
                         </FluentButton>
                     </div>
@@ -33,9 +59,33 @@
 </FluentLayout>
 
 <FluentToastProvider />
-
+<FluentDialogProvider />
 
 @code {
+    private string userName = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var provider = (CustomAuthenticationStateProvider)AuthStateProvider;
+        userName = await provider.GetAuthenticatedUserName() ?? string.Empty;
+        await base.OnInitializedAsync();
+    }
+
+    private bool IsMessagingPage()
+    {
+        return NavigationManager.ToBaseRelativePath(NavigationManager.Uri) == "messaging";
+    }
+
+    private void GoToMessaging()
+    {
+        NavigationManager.NavigateTo("/messaging");
+    }
+
+    private void GoToFlightTracker()
+    {
+        NavigationManager.NavigateTo("/tracker");
+    }
+
     private async Task Logout()
     {
         var customProvider = (CustomAuthenticationStateProvider)AuthStateProvider;

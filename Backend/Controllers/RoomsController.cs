@@ -13,7 +13,7 @@ namespace Backend.Controllers
     [Authorize]
     public class RoomsController(
         ChatRoomManager chatRoomManager,
-        ChatServerService chatServerService) : Controller
+        ChatServerService chatServerService) : ControllerBase
     {
         [HttpPost]
         public async Task<ActionResult<CreateRoomResponse>> CreateRoomAsync([FromBody] CreateRoomRequest request)
@@ -23,7 +23,7 @@ namespace Backend.Controllers
             var newRoom = new ChatRoom
             {
                 Id = chatRoomManager.GetNextChatRoomId(),
-                Name = request.Name,
+                Name = request.Name?.Trim(),
                 Members = request.Members!
             };
 

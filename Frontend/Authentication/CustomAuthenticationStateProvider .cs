@@ -27,7 +27,7 @@ namespace Frontend.Authentication
             var authState = await GetAuthenticationStateAsync();
             var user = authState.User;
 
-            logger.LogInformation("Identity: " + JsonSerializer.Serialize(user.Identity));
+            //logger.LogInformation("Identity: " + JsonSerializer.Serialize(user.Identity));
 
             if (user.Identity?.IsAuthenticated == true)
             {
@@ -50,7 +50,7 @@ namespace Frontend.Authentication
                 claims.Add(new Claim(kvp.Key, kvp.Value.ToString()!));
             }
 
-            logger.LogInformation("Claims: " + JsonSerializer.Serialize(claims));
+            //logger.LogInformation("Claims: " + JsonSerializer.Serialize(claims));
 
             return claims;
         }

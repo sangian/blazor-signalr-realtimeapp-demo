@@ -40,7 +40,7 @@ public sealed class MessageService(
         }
     }
 
-    public async Task<bool> MarkMessageAsDelivered(long roomId, long messageId)
+    public async Task<bool> MarkMessageAsDelivered(long roomId, Guid messageId)
     {
         try
         {
@@ -95,6 +95,36 @@ public sealed class MessageService(
         {
             logger.LogError(ex, "Error marking message as read.");
             return false;
+        }
+    }
+
+    public async Task<GetMessagesItem[]> GetMessages(long roomId)
+    {
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient("BackendAPI");
+
+            var response = await httpClient.GetAsync($"api/Rooms/{roomId}/Messages");
+
+            response.EnsureSuccessStatusCode();
+
+            var content = await response.Content.ReadFromJsonAsync<GetMessagesResponse>();
+
+            return content?.Messages ?? [];
+        }
+        catch (HttpRequestException)
+        {
+            return [];
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogError(ex, "Error getting messages.");
+            return [];
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error getting messages.");
+            return [];
         }
     }
 }

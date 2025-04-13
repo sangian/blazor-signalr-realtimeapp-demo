@@ -5,19 +5,19 @@ namespace Backend.ChatServer;
 
 public sealed class ChatMessageManager
 {
-    private static readonly ConcurrentDictionary<long, (ConcurrentBag<ChatMessage> Messages, HashSet<Guid> MessageIds)> ChatMessagesByRoomId = new();
+    private static readonly ConcurrentDictionary<long, SortedList<Guid, ChatMessage>> ChatMessages = new();
 
     public bool AddMessage(ChatMessage message)
     {
-        if (!ChatMessagesByRoomId.TryGetValue(message.RoomId, out var value))
+        if (!ChatMessages.TryGetValue(message.RoomId, out var value))
         {
-            value = (new ConcurrentBag<ChatMessage>(), new HashSet<Guid>());
-            ChatMessagesByRoomId[message.RoomId] = value;
+            value = [];
+            ChatMessages[message.RoomId] = value;
         }
 
-        if (value.MessageIds.Add(message.Id))
+        if (!value.ContainsKey(message.Id))
         {
-            value.Messages.Add(message);
+            value.Add(message.Id, message);
             return true;
         }
 
@@ -26,24 +26,24 @@ public sealed class ChatMessageManager
 
     public bool IsMessageExists(long roomId, Guid id)
     {
-        return ChatMessagesByRoomId.TryGetValue(roomId, out var room) &&
-            room.MessageIds.Contains(id);
+        return ChatMessages.TryGetValue(roomId, out var room) &&
+            room.ContainsKey(id);
     }
 
     public IReadOnlyCollection<ChatMessage> GetMessagesByRoomId(long roomId)
     {
-        if (ChatMessagesByRoomId.TryGetValue(roomId, out var value))
+        if (ChatMessages.TryGetValue(roomId, out var value))
         {
-            return [.. value.Messages.OrderBy(m => m.CreatedAt)];
+            return [.. value.Values];
         }
         return [];
     }
 
     public IReadOnlyCollection<Guid> GetMessageIdsByRoomId(long roomId)
     {
-        if (ChatMessagesByRoomId.TryGetValue(roomId, out var value))
+        if (ChatMessages.TryGetValue(roomId, out var value))
         {
-            return [.. value.MessageIds];
+            return [.. value.Keys];
         }
         return [];
     }

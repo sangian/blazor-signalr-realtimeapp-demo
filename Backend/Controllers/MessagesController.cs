@@ -12,10 +12,11 @@ namespace Backend.Controllers
     [ApiController]
     [Authorize]
     public sealed class MessagesController(
+        ILogger<MessagesController> logger,
         ChatRoomManager chatRoomManager,
         ChatMessageManager chatMessageManager,
         ChatMessageReceiptManager chatMessageReceiptManager,
-        ChatServerService chatServerService) : Controller
+        ChatServerService chatServerService) : ControllerBase
     {
         [HttpPost]
         public async Task<ActionResult<SendMessageResponse>> SendMessageAsync(long roomId, [FromBody] SendMessageRequest request)
@@ -56,7 +57,7 @@ namespace Backend.Controllers
             {
                 Id = request.MessageId,
                 RoomId = roomId,
-                Message = request.Message!,
+                Message = request.Message!.Trim(),
                 CreatedAt = request.CreatedAt,
                 SentAt = DateTime.UtcNow,
                 Sender = currentUserName
@@ -140,6 +141,8 @@ namespace Backend.Controllers
         [HttpPatch("read")]
         public async Task<ActionResult> SetReadReceipt(long roomId)
         {
+            logger.LogInformation("SetReadReceipt: roomId={roomId}", roomId);
+
             var currentUserName = User.Identity?.Name;
 
             if (!chatRoomManager.IsMemberInChatRoom(roomId, currentUserName!))

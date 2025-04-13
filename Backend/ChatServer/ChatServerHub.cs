@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Shared;
 
 namespace Backend.ChatServer;
 
@@ -65,7 +66,10 @@ public sealed class ChatServerHub(
     public void IsTyping(long roomId)
     {
         var userId = Context.User?.Identity?.Name;
-        Clients.Group(roomId.ToString()).SendAsync("IsTyping", userId);
+        if (chatRoomManager.IsMemberInChatRoom(roomId, userId!))
+        {
+            Clients.Group(roomId.ToString()).SendAsync(Constants.CLIENT_CHAT_MESSAGE_TYPING, roomId, userId);
+        }
     }
 
     private async Task JoinChatRoom(long roomId, string userId, string connectionId)

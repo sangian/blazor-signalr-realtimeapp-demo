@@ -11,12 +11,12 @@
             <div style="display: flex; grid-gap: 10px;">
                 @if (IsMessagingPage())
                 {
-                    <FluentIcon Icon="Icons.Filled.Size24.ChatMultiple" Color="Color.Custom" CustomColor="#ffffff" />
+                    <FluentIcon Icon="Icons.Regular.Size24.ChatMultiple" Color="Color.Custom" CustomColor="#ffffff" />
                     <span>Messaging</span>
                 }
                 else
                 {
-                    <FluentIcon Icon="Icons.Filled.Size24.Airplane" Color="Color.Custom" CustomColor="#ffffff" Style="transform: rotate(-45deg)" />
+                    <FluentIcon Icon="Icons.Regular.Size24.Airplane" Color="Color.Custom" CustomColor="#ffffff" Style="transform: rotate(-45deg)" />
                     <span>Flight Tracker</span>
                 }
             </div>
@@ -27,7 +27,7 @@
                         {
                             <FluentButton Appearance="Appearance.Outline" BackgroundColor="transparent" Color="white" OnClick="GoToMessaging">
                                 <div style="display: flex; justify-content: center; align-items: center; grid-gap: 5px;">
-                                    <FluentIcon Icon="@(Icons.Filled.Size20.ChatMultiple)" Color="Color.Custom" CustomColor="#ffffff" />
+                                    <FluentIcon Icon="@(Icons.Regular.Size20.ChatMultiple)" Color="Color.Custom" CustomColor="#ffffff" />
                                     Messaging
                                 </div>
                             </FluentButton>
@@ -36,7 +36,7 @@
                         {
                             <FluentButton Appearance="Appearance.Outline" BackgroundColor="transparent" Color="white" OnClick="GoToFlightTracker">
                                 <div style="display: flex; justify-content: center; align-items: center; grid-gap: 5px;">
-                                    <FluentIcon Icon="@(Icons.Filled.Size20.Airplane)" Color="Color.Custom" CustomColor="#ffffff"  Style="transform: rotate(-45deg)" />
+                                    <FluentIcon Icon="@(Icons.Regular.Size20.Airplane)" Color="Color.Custom" CustomColor="#ffffff"  Style="transform: rotate(-45deg)" />
                                     Flight Tracker
                                 </div>
                             </FluentButton>

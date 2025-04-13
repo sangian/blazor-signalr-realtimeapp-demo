@@ -1,6 +1,9 @@
 ﻿@page "/messaging"
+@using Shared.ChatServer.ApiDtos
 @using Shared.ChatServer.HubEvents
+@using System.Collections.Concurrent
 @attribute [Authorize]
+@implements IDisposable
 
 <PageTitle>Realtime Apps | Messaging</PageTitle>
 
@@ -8,8 +11,11 @@
 @inject IToastService ToastService
 @inject IDialogService DialogService
 @inject IJSRuntime JSRuntime
+@inject AuthenticationStateProvider AuthStateProvider
 @inject ChatServerService ChatServerService
 @inject RoomService RoomService
+@inject RoomManager RoomManager
+@inject Services.MessageService MessageService
 
 <div class="chat-app">
     <div class="chat-room-list">
@@ -27,17 +33,26 @@
         <div class="room-list">
             @if (rooms.Count > 0)
             {
-                foreach (var room in rooms)
+                @foreach (var room in rooms)
                 {
                     var roomItemClass = "room-item";
 
-                    if (selectedRoom != null && room.Id == selectedRoom.Id)
+                    @if (selectedRoom != null && room.Id == selectedRoom.Id)
                     {
                         roomItemClass += " selected";
                     }
 
-                    <div class="@roomItemClass" @onclick="@(() => SelectRoom(room))">
-                        <FluentIcon Icon="@(Icons.Regular.Size16.ChatMultiple)" />
+                    <div class="@roomItemClass" @onclick="@(async () => await SelectRoom(room))">
+                        @if (room.HasUnreadMessages)
+                        {
+                            <FluentCounterBadge BackgroundColor="@Color.Error" Color="Color.Fill" Dot="true">
+                                <FluentIcon Icon="@(Icons.Regular.Size16.ChatMultiple)" />
+                            </FluentCounterBadge>
+                        }
+                        else
+                        {
+                            <FluentIcon Icon="@(Icons.Regular.Size16.ChatMultiple)" />
+                        }
                         <span>@room.Name</span>
                     </div>
                 }
@@ -50,26 +65,7 @@
         </div>
     </div>
     <div class="chat-message-list">
-        <!-- Default view when no room is selected -->
-        <div class="default-view">
-            <p>Select a chat room to start messaging.</p>
-        </div>
-        <!-- Chat room selected view -->
-        <div class="chat-room-view" style="display: none;">
-            <div class="chat-room-header">
-                <h2>Chat Room Name</h2>
-                <p>Members: User1, User2, User3</p>
-            </div>
-            <div class="messages">
-                <!-- Messages will be displayed here -->
-                <div class="message other">Hello!</div>
-                <div class="message self">Hi there!</div>
-            </div>
-            <div class="message-input">
-                <textarea placeholder="Type your message..."></textarea>
-                <button class="send-btn">Send</button>
-            </div>
-        </div>
+        <MessageList SelectedRoom="@selectedRoom" IsLoadingRoom="@isLoadingRoom" CurrentUser="@currentUserId" OnSendMessage="@HandleSendMessage" OnUserTyping="@HandleUserTyping" OtherMembersTypingIndicator="@OtherMembersTypingIndicator" />
     </div>
 </div>
 
@@ -78,10 +74,18 @@
     private HubConnection? hubConnection;
     private ICollection<RoomModel> rooms = [];
     private RoomModel? selectedRoom;
+    private bool isLoadingRoom = false;
+    private string OtherMembersTypingIndicator = string.Empty;
+    private ConcurrentDictionary<long, HashSet<string>> TypingUsers = new();
+    private ConcurrentDictionary<long, CancellationTokenSource> TypingDelayTokens = new();
+    private string currentUserId = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         isLoading = true;
+
+        var provider = (CustomAuthenticationStateProvider)AuthStateProvider;
+        currentUserId = await provider.GetAuthenticatedUserName() ?? string.Empty;
 
         try
         {
@@ -114,6 +118,11 @@
             await ConnectToSignalRHub();
 
             hubConnection.On<ChatRoomCreatedEvent>(Constants.CLIENT_CHAT_ROOM_CREATED, HandleChatRoomCreated);
+            hubConnection.On<ChatRoomDeletedEvent>(Constants.CLIENT_CHAT_ROOM_DELETED, HandleChatRoomDeleted);
+            hubConnection.On<ChatMessageSentEvent>(Constants.CLIENT_CHAT_MESSAGE_SENT, HandleMessageReceived);
+            hubConnection.On<ChatMessageDeliveredEvent>(Constants.CLIENT_CHAT_MESSAGE_DELIVERED, HandleMessageDelivered);
+            hubConnection.On<ChatMessageReadEvent>(Constants.CLIENT_CHAT_MESSAGE_READ, HandleMessageRead);
+            hubConnection.On<long, string>(Constants.CLIENT_CHAT_MESSAGE_TYPING, HandleOtherMembersTyping);
         }
         catch (Exception ex)
         {
@@ -125,15 +134,15 @@
         isLoading = false;
     }
 
+    private void OnRoomsChanged()
+    {
+        UpdateRoomList();
+    }
+
     private void UpdateRoomList()
     {
         rooms = RoomManager.GetRooms();
         StateHasChanged();
-    }
-
-    private void OnRoomsChanged()
-    {
-        UpdateRoomList();
     }
 
     private async Task ConnectToSignalRHub()
@@ -159,29 +168,257 @@
         await ConnectToSignalRHub();
     }
 
+    private async Task OpenCreateNewChatDialog()
+    {
+        await DialogService.ShowDialogAsync<CreateNewChatDialog>(new DialogParameters
+            {
+                Width = "400px"
+            });
+    }
+
     private async Task HandleChatRoomCreated(ChatRoomCreatedEvent @event)
     {
-        RoomManager.AddOrUpdateRoom(new RoomModel
+        var roomAdded = RoomManager.AddOrUpdateRoom(new RoomModel
         {
             Id = @event.Id,
             Name = @event.Name,
             Members = @event.Members!
         });
 
-        await JSRuntime.InvokeVoidAsync("playAlertSound");
+        if (roomAdded)
+        {
+            await JSRuntime.InvokeVoidAsync("playAlertSound");
+        }
     }
 
-    private async Task OpenCreateNewChatDialog()
+    private async Task HandleChatRoomDeleted(ChatRoomDeletedEvent @event)
     {
-        await DialogService.ShowDialogAsync<CreateNewChatDialog>(new DialogParameters
+        RoomManager.RemoveRoom(@event.Id);
+        await Task.CompletedTask;
+    }
+
+    private async Task SelectRoom(RoomModel room)
+    {
+        isLoadingRoom = true;
+
+        selectedRoom = room;
+        RoomManager.SelectRoom(room.Id);
+        StateHasChanged();
+
+        var messages = await MessageService.GetMessages(room.Id);
+
+        if (messages is not null)
         {
-                Width = "400px"
+            RoomManager.InitRoomMessages(room.Id, messages.Select(m => new MessageModel
+            {
+                Id = m.Id,
+                Message = m.Message,
+                CreatedAt = m.CreatedAt,
+                SentAt = m.SentAt,
+                Sender = m.Sender,
+                DeliveryReceipts = m.DeliveryReceipts!.Select(dr => new MessageDeliveryReceiptModel
+                {
+                    MessageId = dr.MessageId,
+                    DeliveredAt = dr.DeliveredAt,
+                    Recipient = dr.Recipient
+                }).ToList(),
+                ReadReceipts = m.ReadReceipts!.Select(rr => new MessageReadReceiptModel
+                {
+                    MessageId = rr.MessageId,
+                    ReadAt = rr.ReadAt,
+                    Recipient = rr.Recipient
+                }).ToList(),
+            }));
+
+            // Mark messages as delivered
+            var undeliveredMessages = messages.Where(m =>
+                m.DeliveryReceipts!.All(dr => dr.Recipient != currentUserId)).ToList();
+
+            foreach (var message in undeliveredMessages)
+            {
+                await MessageService.MarkMessageAsDelivered(room.Id, message.Id);
+            }
+
+            // Mark messages as read
+            var unreadMessages = messages.Where(m =>
+                m.ReadReceipts!.All(rr => rr.Recipient != currentUserId)).ToList();
+
+            if (unreadMessages.Count > 0)
+            {
+                await MessageService.MarkMessagesAsRead(room.Id);
+            }
+
+            isLoadingRoom = false;
+
+            StateHasChanged();
+        }
+
+        RoomManager.SetRoomHasUnreadMessages(room.Id, false);
+    }
+
+    private void HandleOtherMembersTyping(long roomId, string userId)
+    {
+        if (userId == currentUserId)
+        {
+            return; // Ignore typing events from the current user
+        }
+
+        if (!TypingUsers.ContainsKey(roomId))
+        {
+            TypingUsers[roomId] = new HashSet<string>();
+        }
+
+        // Add the user to the typing list
+        TypingUsers[roomId].Add(userId);
+
+        // Cancel any existing delay for this room
+        if (TypingDelayTokens.TryGetValue(roomId, out var existingTokenSource))
+        {
+            existingTokenSource.Cancel();
+        }
+
+        // Create a new delay token
+        var tokenSource = new CancellationTokenSource();
+        TypingDelayTokens[roomId] = tokenSource;
+
+        // Remove the user after a delay if no new typing event occurs
+        _ = Task.Delay(3000, tokenSource.Token).ContinueWith(task =>
+        {
+            if (!task.IsCanceled && TypingUsers.ContainsKey(roomId))
+            {
+                TypingUsers[roomId].Clear();
+                UpdateTypingIndicator(roomId);
+            }
+        });
+
+        UpdateTypingIndicator(roomId);
+    }
+
+    private void UpdateTypingIndicator(long roomId)
+    {
+        if (selectedRoom != null && selectedRoom.Id == roomId)
+        {
+            var typingUsers = string.Join(", ", TypingUsers[roomId]);
+            if (TypingUsers[roomId].Count == 1)
+            {
+                OtherMembersTypingIndicator = $"{typingUsers} is typing...";
+            }
+            else if (TypingUsers[roomId].Count > 1)
+            {
+                OtherMembersTypingIndicator = $"{typingUsers} are typing...";
+            }
+            else
+            {
+                OtherMembersTypingIndicator = string.Empty;
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleUserTyping(bool isUserTyping)
+    {
+        if (isUserTyping)
+        {
+            await hubConnection!.SendAsync(Constants.SERVER_IS_TYPING, selectedRoom!.Id);
+        }
+    }
+
+    private async Task HandleSendMessage(string message)
+    {
+        if (selectedRoom != null && !string.IsNullOrWhiteSpace(message))
+        {
+            var response = await MessageService.SendMessage(selectedRoom.Id, new SendMessageRequest
+            {
+                CreatedAt = DateTime.UtcNow,
+                Message = message.Trim(),
+                MessageId = Guid.CreateVersion7(),
+            });
+
+            if (response!.Success)
+            {
+                var messageModel = new MessageModel
+                {
+                    Id = response.MessageId,
+                    Message = message.Trim(),
+                    CreatedAt = DateTime.UtcNow,
+                    SentAt = DateTime.UtcNow,
+                    Sender = currentUserId
+                };
+
+                RoomManager.AddOrUpdateRoomMessage(selectedRoom.Id, messageModel, isSent: true);
+            }
+            else
+            {
+                ToastService.ShowError("Failed to send message.");
+            }
+        }
+    }
+
+    private async Task HandleMessageReceived(ChatMessageSentEvent @event)
+    {
+        var newMessage = new MessageModel
+        {
+            Id = @event.MessageId,
+            Message = @event.Message,
+            CreatedAt = @event.CreatedAt,
+            SentAt = @event.SentAt,
+            Sender = @event.Sender
+        };
+
+        if (!newMessage.IsSelfMessage(currentUserId)
+            && RoomManager.AddOrUpdateRoomMessage(@event.RoomId, newMessage))
+        {
+            await JSRuntime.InvokeVoidAsync("playAlertSound");
+
+            await MessageService.MarkMessageAsDelivered(@event.RoomId, @event.MessageId);
+
+            if (selectedRoom?.Id == @event.RoomId)
+            {
+                // Mark the message as read if the room is selected
+                await MessageService.MarkMessagesAsRead(@event.RoomId);
+            }
+
+            if (selectedRoom?.Id != @event.RoomId)
+            {
+                RoomManager.SetRoomHasUnreadMessages(@event.RoomId, true);
+
+                // Show a toast notification for the new message
+                ToastService.ShowInfo($"New message from {newMessage.Sender}");
+            }
+        }
+    }
+
+    private void HandleMessageDelivered(ChatMessageDeliveredEvent @event)
+    {
+        RoomManager.AddDeliveryReceipt(@event.RoomId, new MessageDeliveryReceiptModel
+        {
+            MessageId = @event.MessageId,
+            DeliveredAt = @event.DeliveredAt,
+            Recipient = @event.Recipient
         });
     }
 
-    private void SelectRoom(RoomModel room)
+    private void HandleMessageRead(ChatMessageReadEvent @event)
     {
-        selectedRoom = room;
-        StateHasChanged();
+        RoomManager.AddReadReceipts(@event.RoomId, @event.MessageIds.Select(messageId => new MessageReadReceiptModel
+        {
+            MessageId = messageId,
+            ReadAt = @event.ReadAt,
+            Recipient = @event.Recipient
+        }));
+    }
+
+    public void Dispose()
+    {
+        if (hubConnection != null)
+        {
+            hubConnection.Reconnecting -= OnReconnecting!;
+            hubConnection.Reconnected -= OnReconnected!;
+            hubConnection.Closed -= OnClosedPermanently!;
+            _ = hubConnection.DisposeAsync();
+        }
+
+        RoomManager.RoomsChanged -= OnRoomsChanged;
+        RoomManager.Dispose();
     }
 }

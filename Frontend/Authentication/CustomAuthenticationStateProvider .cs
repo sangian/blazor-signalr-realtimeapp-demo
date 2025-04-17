@@ -5,9 +5,7 @@ using System.Text.Json;
 
 namespace Frontend.Authentication
 {
-    public sealed class CustomAuthenticationStateProvider(
-        ILogger<CustomAuthenticationStateProvider> logger,
-        ILocalStorageService localStorage) : AuthenticationStateProvider
+    public sealed class CustomAuthenticationStateProvider(ILocalStorageService localStorage) : AuthenticationStateProvider
     {
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {

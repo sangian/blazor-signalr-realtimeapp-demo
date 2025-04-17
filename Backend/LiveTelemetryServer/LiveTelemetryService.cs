@@ -2,7 +2,7 @@
 using Shared;
 using Shared.TelemetryServer;
 
-namespace Backend.LiveTelemetry;
+namespace Backend.LiveTelemetryServer;
 
 public sealed class LiveTelemetryService(
     IHubContext<LiveTelemetryHub> liveTelemetryHubContext)

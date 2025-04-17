@@ -1,14 +1,14 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Threading.Channels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Shared.TelemetryServer;
-using System.Threading.Channels;
 
-namespace Backend.LiveTelemetry;
+namespace Backend.LiveTelemetryServer;
 
 [Authorize]
 public sealed class LiveTelemetryHub(
     ILogger<LiveTelemetryHub> logger,
-    StreamChannelManager streamChannelManager) : Hub
+    LiveTelemetryChannelManager liveTelemetryChannelManager) : Hub
 {
     public override Task OnConnectedAsync()
     {
@@ -25,7 +25,7 @@ public sealed class LiveTelemetryHub(
         }
 
         var channel = Channel.CreateUnbounded<AirplaneTelemetry>();
-        streamChannelManager.AddChannel(connectionId, channel);
+        liveTelemetryChannelManager.AddChannel(connectionId, channel);
 
         return base.OnConnectedAsync();
     }
@@ -49,7 +49,7 @@ public sealed class LiveTelemetryHub(
             logger.LogError(exception, "LiveTelemetryHub => Client {connectionId} disconnected with error: {Error}", connectionId, exception.Message);
         }
 
-        streamChannelManager.RemoveChannel(connectionId);
+        liveTelemetryChannelManager.RemoveChannel(connectionId);
 
         return base.OnDisconnectedAsync(exception);
     }
@@ -58,7 +58,7 @@ public sealed class LiveTelemetryHub(
     {
         var connectionId = Context.ConnectionId;
 
-        if (!streamChannelManager.TryGetChannel(connectionId, out var channel))
+        if (!liveTelemetryChannelManager.TryGetChannel(connectionId, out var channel))
         {
             logger.LogError("LiveTelemetryHub => Failed to get stream channel for connection ID: {connectionId}", connectionId);
 

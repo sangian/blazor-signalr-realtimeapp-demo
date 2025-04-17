@@ -3,6 +3,8 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 
+@using System.Threading.Channels
+
 @* Header *@
 <FluentDialogHeader ShowDismiss="true">
     <FluentStack VerticalAlignment="VerticalAlignment.Center">
@@ -15,8 +17,7 @@
 
 @* Footer *@
 <FluentDialogFooter>
-    <FluentButton Appearance="Appearance.Accent" BackgroundColor="#1A1F71" Color="#FFFFFF" Loading="isCreatingChat" OnClick="@CreateClick">Create</FluentButton>
-    <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelClick">Cancel</FluentButton>
+    <FluentButton Appearance="Appearance.Neutral" OnClick="@CloseClick">Close</FluentButton>
 </FluentDialogFooter>
 
 @* Body *@
@@ -36,6 +37,10 @@
     [Parameter, EditorRequired]
     public HubConnection? hubConnection { get; set; }
 
+    [CascadingParameter]
+    public FluentDialog? Dialog { get; set; }
+
+    private Channel<string>? streamChannel;
     private CancellationTokenSource? cancellationTokenSource;
 
     protected override async Task OnInitializedAsync()
@@ -46,5 +51,10 @@
         {
             
         }
+    }
+
+    private async Task CloseClick()
+    {
+        await Dialog!.CancelAsync();
     }
 }

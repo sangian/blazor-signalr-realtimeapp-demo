@@ -1,4 +1,4 @@
-﻿using Backend.LiveTelemetry;
+﻿using Backend.LiveTelemetryServer;
 using Microsoft.AspNetCore.SignalR;
 using Shared;
 using Shared.TelemetryServer;

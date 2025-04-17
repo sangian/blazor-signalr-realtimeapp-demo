@@ -1,11 +1,11 @@
 using Backend.Authentication;
 using Backend.ChatServer;
-using Backend.LiveTelemetry;
 using Backend.TelemetryServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using Backend.LiveTelemetryServer;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,8 +17,8 @@ builder.Services.AddSingleton<ChatMessageManager>();
 builder.Services.AddSingleton<ChatMessageReceiptManager>();
 
 builder.Services.AddSingleton<TelemetryServerUserManager>();
-builder.Services.AddSingleton<StreamChannelManager>();
-builder.Services.AddSingleton<VideoStreamChannelManager>();
+builder.Services.AddSingleton<LiveTelemetryChannelManager>();
+builder.Services.AddSingleton<LiveVideoChannelManager>();
 
 builder.Services.AddSingleton<JwtTokenGenerator>();
 

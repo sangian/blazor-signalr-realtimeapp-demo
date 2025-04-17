@@ -10,7 +10,7 @@ public sealed class ChatServerHub(
     ILogger<ChatServerHub> logger,
     ChatServerUserManager chatServerUserManager,
     ChatRoomManager chatRoomManager,
-    VideoStreamChannelManager streamChannelManager) : Hub
+    LiveVideoChannelManager liveVideoChannelManager) : Hub
 {
     public override async Task OnConnectedAsync()
     {
@@ -74,17 +74,6 @@ public sealed class ChatServerHub(
         }
     }
 
-    public async Task StreamVideo(ChannelReader<string> videoStream, long roomId, string userId)
-    {
-        while (await videoStream.WaitToReadAsync())
-        {
-            while (videoStream.TryRead(out string? videoFrame))
-            {
-                streamChannelManager.StreamVideo(videoFrame);
-            }
-        }
-    }
-
     private async Task JoinChatRoom(long roomId, string userId, string connectionId)
     {
         if (!chatRoomManager.IsChatRoomExists(roomId))
@@ -102,4 +91,92 @@ public sealed class ChatServerHub(
 
         logger.LogInformation("ChatServerHub => User {userId} joined chat room {roomId}", userId, roomId);
     }
+
+    #region Live video stream
+    public void RegisterClientChannel(long roomId, ChannelReader<string> streamChannel)
+    {
+        var userId = Context.User?.Identity?.Name;
+        var connectionId = Context.ConnectionId;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            logger.LogWarning("ChatServerHub.RegisterClientChannel => Client has no user ID: {connectionId}", connectionId);
+            return;
+        }
+        
+        if (!chatRoomManager.IsMemberInChatRoom(roomId, userId!))
+        {
+            logger.LogWarning("ChatServerHub.RegisterClientChannel => User {userId} is not a member of chat room {roomId}", userId, roomId);
+            return;
+        }
+            
+        liveVideoChannelManager.AddRoomChannel(roomId, userId, connectionId, streamChannel);
+    }
+
+    public async Task StreamStarted(long roomId)
+    {
+        var userId = Context.User?.Identity?.Name;
+        var connectionId = Context.ConnectionId;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            logger.LogWarning("ChatServerHub.StreamStarted => Client has no user ID: {connectionId}", connectionId);
+            return;
+        }
+        
+        if (!chatRoomManager.IsMemberInChatRoom(roomId, userId!))
+        {
+            logger.LogWarning("ChatServerHub.StreamStarted => User {userId} is not a member of chat room {roomId}", userId, roomId);
+            return;
+        }
+
+        await Clients
+            .Group(roomId.ToString())
+            .SendAsync("StreamStarted", userId, roomId);
+    }
+
+    public async Task StreamStopped(long roomId)
+    {
+        var userId = Context.User?.Identity?.Name;
+        var connectionId = Context.ConnectionId;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            logger.LogWarning("ChatServerHub.StreamStarted => Client has no user ID: {connectionId}", connectionId);
+            return;
+        }
+        
+        if (!chatRoomManager.IsMemberInChatRoom(roomId, userId!))
+        {
+            logger.LogWarning("ChatServerHub.StreamStarted => User {userId} is not a member of chat room {roomId}", userId, roomId);
+            return;
+        }
+
+        await Clients
+            .Group(roomId.ToString())
+            .SendAsync("StreamStopped", userId, roomId);
+    }
+
+    public IEnumerable<ChannelReader<string>>? GetRoomChannels(long roomId)
+    {
+        var userId = Context.User?.Identity?.Name;
+        var connectionId = Context.ConnectionId;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            logger.LogWarning("ChatServerHub.GetRoomChannels => Client has no user ID: {connectionId}", connectionId);
+            return null;
+        }
+        
+        if (!chatRoomManager.IsMemberInChatRoom(roomId, userId!))
+        {
+            logger.LogWarning("ChatServerHub.GetRoomChannels => User {userId} is not a member of chat room {roomId}", userId, roomId);
+            return null;
+        }
+        
+        return liveVideoChannelManager.GetRoomChannels(roomId)?
+            .Values
+            .AsEnumerable();
+    }
+    #endregion
 }

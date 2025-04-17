@@ -1,10 +1,10 @@
-﻿using Shared.TelemetryServer;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Threading.Channels;
+using Shared.TelemetryServer;
 
-namespace Backend.LiveTelemetry
+namespace Backend.LiveTelemetryServer
 {
-    public sealed class StreamChannelManager
+    public sealed class LiveTelemetryChannelManager
     {
         private static readonly ConcurrentDictionary<string, Channel<AirplaneTelemetry>> Channels = new();
 

@@ -1,9 +1,9 @@
-﻿using Backend.LiveTelemetry;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Shared.TelemetryServer;
 using System.Text.Json;
 using System.Threading.Channels;
+using Backend.LiveTelemetryServer;
 
 namespace Backend.TelemetryServer;
 
@@ -12,7 +12,7 @@ public sealed class TelemetryServerHub(
     ILogger<TelemetryServerHub> logger,
     TelemetryServerUserManager telemetryServerUserManager,
     LiveTelemetryService liveTelemetryService,
-    StreamChannelManager streamChannelManager) : Hub
+    LiveTelemetryChannelManager liveTelemetryChannelManager) : Hub
 {
     public override Task OnConnectedAsync()
     {
@@ -78,7 +78,7 @@ public sealed class TelemetryServerHub(
             {
                 logger.LogInformation("TelemetryServerHub => Telemetry stream received from client: {Telemetry}", JsonSerializer.Serialize(telemetry));
 
-                streamChannelManager.StreamTelemetry(telemetry);
+                liveTelemetryChannelManager.StreamTelemetry(telemetry);
             }
         }
     }

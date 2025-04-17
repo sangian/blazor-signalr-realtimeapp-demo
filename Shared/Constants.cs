@@ -10,6 +10,7 @@
         public const string SERVER_AIRPLANE_ARRIVED = "AirplaneArrived";
         public const string SERVER_AIRPLANE_CRASHED = "AirplaneCrashed";
         public const string SERVER_STREAM_TELEMETRY = "StreamTelemetry";
+        public const string SERVER_STREAM_VIDEO = "StreamVideo";
         public const string SERVER_IS_TYPING = "IsTyping";
 
         public const string PING = "Ping";

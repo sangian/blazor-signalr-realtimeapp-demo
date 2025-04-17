@@ -18,6 +18,7 @@ builder.Services.AddSingleton<ChatMessageReceiptManager>();
 
 builder.Services.AddSingleton<TelemetryServerUserManager>();
 builder.Services.AddSingleton<StreamChannelManager>();
+builder.Services.AddSingleton<VideoStreamChannelManager>();
 
 builder.Services.AddSingleton<JwtTokenGenerator>();
 

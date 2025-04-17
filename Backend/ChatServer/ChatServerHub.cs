@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Shared;
+using System.Threading.Channels;
 
 namespace Backend.ChatServer;
 
@@ -8,7 +9,8 @@ namespace Backend.ChatServer;
 public sealed class ChatServerHub(
     ILogger<ChatServerHub> logger,
     ChatServerUserManager chatServerUserManager,
-    ChatRoomManager chatRoomManager) : Hub
+    ChatRoomManager chatRoomManager,
+    VideoStreamChannelManager streamChannelManager) : Hub
 {
     public override async Task OnConnectedAsync()
     {
@@ -69,6 +71,17 @@ public sealed class ChatServerHub(
         if (chatRoomManager.IsMemberInChatRoom(roomId, userId!))
         {
             Clients.Group(roomId.ToString()).SendAsync(Constants.CLIENT_CHAT_MESSAGE_TYPING, roomId, userId);
+        }
+    }
+
+    public async Task StreamVideo(ChannelReader<string> videoStream, long roomId, string userId)
+    {
+        while (await videoStream.WaitToReadAsync())
+        {
+            while (videoStream.TryRead(out string? videoFrame))
+            {
+                streamChannelManager.StreamVideo(videoFrame);
+            }
         }
     }
 

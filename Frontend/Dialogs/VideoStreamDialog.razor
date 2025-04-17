@@ -1,0 +1,50 @@
+﻿@implements IDialogContentComponent
+
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+@* Header *@
+<FluentDialogHeader ShowDismiss="true">
+    <FluentStack VerticalAlignment="VerticalAlignment.Center">
+        <FluentIcon Icon="Icons.Regular.Size24.Video" />
+        <FluentLabel Typo="Typography.PaneHeader">
+            Live Video Stream
+        </FluentLabel>
+    </FluentStack>
+</FluentDialogHeader>
+
+@* Footer *@
+<FluentDialogFooter>
+    <FluentButton Appearance="Appearance.Accent" BackgroundColor="#1A1F71" Color="#FFFFFF" Loading="isCreatingChat" OnClick="@CreateClick">Create</FluentButton>
+    <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelClick">Cancel</FluentButton>
+</FluentDialogFooter>
+
+@* Body *@
+<FluentDialogBody>
+    <div>
+        <video id="localVideo" autoplay muted style="width: 100%; max-width: 800px; border: 1px solid #ccc;"></video>
+        <canvas id="videoCanvas" style="display: none;"></canvas>
+    </div>
+
+    <h4>Remote Stream</h4>
+    <div>
+        <img id="remoteVideo" style="width: 100%; max-width: 800px; border: 1px solid #ccc;" />
+    </div>
+</FluentDialogBody>
+
+@code {
+    [Parameter, EditorRequired]
+    public HubConnection? hubConnection { get; set; }
+
+    private CancellationTokenSource? cancellationTokenSource;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var stream = hubConnection!.StreamAsync<string>(Constants.SERVER_STREAM_VIDEO);
+
+        await foreach (var videoFrame in stream)
+        {
+            
+        }
+    }
+}

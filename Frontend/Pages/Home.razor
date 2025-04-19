@@ -48,7 +48,7 @@
     {
         try
         {
-            hubConnection = await LiveTelemetryService.InitalizeHubConnection();
+            hubConnection = await LiveTelemetryService.GetHubConnection();
 
             hubConnection!.Reconnecting += OnReconnecting!;
             hubConnection!.Reconnected += OnReconnected!;

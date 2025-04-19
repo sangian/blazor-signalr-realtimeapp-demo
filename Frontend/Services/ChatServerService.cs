@@ -11,7 +11,7 @@ public sealed class ChatServerService(
 {
     private HubConnection? hubConnection;
 
-    public async Task<HubConnection?> InitalizeHubConnection()
+    public async Task<HubConnection?> GetHubConnection()
     {
         try
         {

@@ -15,6 +15,20 @@
         });
 };
 
+window.stopCamera = (videoElementId) => {
+    const video = document.getElementById(videoElementId);
+    if (!video) {
+        console.error(`Video element with ID '${videoElementId}' not found.`);
+        return;
+    }
+
+    const stream = video.srcObject;
+    if (stream && stream.getTracks) {
+        stream.getTracks().forEach((track) => track.stop());
+    }
+    video.srcObject = null;
+};
+
 window.captureFrame = (canvasElement, videoElement) => {
     const canvas = document.getElementById(canvasElement);
     const video = document.getElementById(videoElement);

@@ -6,6 +6,7 @@
 
 @inject IJSRuntime JSRuntime
 @inject IToastService ToastService
+@inject IDialogService DialogService
 @inject RoomManager RoomManager
 @inject Services.MessageService MessageService
 
@@ -22,8 +23,17 @@ else
     <!-- Chat room selected view -->
     <div class="chat-room-view">
         <div class="chat-room-header">
-            <div style="font-size: 18px; font-weight: bold;">@SelectedRoom.Name</div>
-            <div>@(string.Join(", ", SelectedRoom.Members))</div>
+            <div class="left">
+                <div style="font-size: 18px; font-weight: bold;">@SelectedRoom.Name</div>
+                <div>@(string.Join(", ", SelectedRoom.Members))</div>
+            </div>
+            <div class="right">
+                <FluentButton Appearance="Appearance.Accent" BackgroundColor="#1A1F71" Color="#FFFFFF" OnClick="@OpenVideoStreamDialog">
+                    <div style="display: flex; justify-content: center; align-items: center; grid-gap: 5px;">
+                        <FluentIcon Icon="@(Icons.Regular.Size20.Video)" Color="Color.Custom" CustomColor="#ffffff" />
+                    </div>
+                </FluentButton>
+            </div>
         </div>
         <div class="messages">
             <!-- Messages will be displayed here -->
@@ -37,7 +47,7 @@ else
             {
                 @foreach (var message in GetMessages())
                 {
-                    var messageClass = message.IsSelfMessage(CurrentUser) ? "self" : "other";
+                    var messageClass = message.IsSelfMessage(CurrentUserId) ? "self" : "other";
                     <IntersectionObserve Once=@true OnChange="@((e) => OnIntersectingChanged(e, message))">
                         <div class="message-container @messageClass" @ref="context.Ref.Current">
                             <div class="message-sender">@message.Sender</div>
@@ -45,7 +55,7 @@ else
                                 <div>@message.Message</div>
                                 <div class="message-timestamp">@message.CreatedAt</div>
                             </div>
-                            <MessageStatus Message="@message" CurrentUser="@CurrentUser" MembersCount="@SelectedRoom.Members.Count" />
+                            <MessageStatus Message="@message" CurrentUser="@CurrentUserId" MembersCount="@SelectedRoom.Members.Count" />
                         </div>
                     </IntersectionObserve>
                 }
@@ -81,13 +91,16 @@ else
 
 @code {
     [Parameter, EditorRequired]
+    public HubConnection? HubConnection { get; set; }
+
+    [Parameter, EditorRequired]
     public RoomModel? SelectedRoom { get; set; }
 
     [Parameter, EditorRequired]
     public bool IsLoadingRoom { get; set; } = false;
 
     [Parameter, EditorRequired]
-    public string CurrentUser { get; set; } = string.Empty;
+    public string CurrentUserId { get; set; } = string.Empty;
 
     [Parameter, EditorRequired]
     public EventCallback<string> OnSendMessage { get; set; }
@@ -103,6 +116,8 @@ else
     private ElementReference MessageTextArea = new();
     private bool IsMessageTextAreaRendered { get; set; } = false;
     private DotNetObjectReference<MessageList>? DotNetRef;
+
+    private VideoStreamDialogContentModel VideoStreamDialogContent = new();
 
     protected override void OnInitialized()
     {
@@ -136,7 +151,7 @@ else
 
     private void OnMessageSent(long roomId, MessageModel message)
     {
-        if (SelectedRoom?.Id == roomId && message.Sender == CurrentUser)
+        if (SelectedRoom?.Id == roomId && message.Sender == CurrentUserId)
         {
             StateHasChanged();
         }
@@ -189,7 +204,7 @@ else
             IsSending = true;
             var newMessage = new MessageModel
             {
-                Sender = CurrentUser,
+                Sender = CurrentUserId,
                 Message = MessageText,
                 CreatedAt = DateTime.UtcNow
             };
@@ -202,8 +217,8 @@ else
 
     private async Task OnIntersectingChanged(IntersectionObserverEntry entry, MessageModel message)
     {
-        if (!message.IsSelfMessage(CurrentUser) 
-            && !message.ReadReceipts.Any(rr => rr!.Recipient!.Equals(CurrentUser))
+        if (!message.IsSelfMessage(CurrentUserId) 
+            && !message.ReadReceipts.Any(rr => rr!.Recipient!.Equals(CurrentUserId))
             && entry.IsVisible)
         {
             await MarkMessagesAsRead();
@@ -216,6 +231,19 @@ else
         {
             await MessageService.MarkMessagesAsRead(SelectedRoom.Id);
         }
+    }
+
+    private async Task OpenVideoStreamDialog()
+    {
+        VideoStreamDialogContent.UserId = CurrentUserId;
+        VideoStreamDialogContent.RoomId = SelectedRoom?.Id;
+        VideoStreamDialogContent.HubConnection = HubConnection;
+
+        await DialogService.ShowDialogAsync<VideoStreamDialog>(VideoStreamDialogContent,
+        new DialogParameters
+        {
+            Width = "1000px"
+        });
     }
 
     public void Dispose()

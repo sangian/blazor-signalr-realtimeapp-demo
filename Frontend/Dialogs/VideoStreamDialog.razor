@@ -1,9 +1,13 @@
-﻿@implements IDialogContentComponent
+﻿@implements IDialogContentComponent<VideoStreamDialogContentModel>
+@implements IAsyncDisposable
 
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 
 @using System.Threading.Channels
+@using System.Runtime.CompilerServices
+@using Shared.ChatServer.Models
+@using System.Collections.Concurrent
 
 @* Header *@
 <FluentDialogHeader ShowDismiss="true">
@@ -23,38 +27,186 @@
 @* Body *@
 <FluentDialogBody>
     <div>
-        <video id="localVideo" autoplay muted style="width: 100%; max-width: 800px; border: 1px solid #ccc;"></video>
+        <video id="localVideo" autoplay muted style="width: 100%; max-width: 400px; border: 1px solid #ccc;"></video>
         <canvas id="videoCanvas" style="display: none;"></canvas>
     </div>
 
-    <h4>Remote Stream</h4>
+    <h5>Remote Streams</h5>
     <div>
-        <img id="remoteVideo" style="width: 100%; max-width: 800px; border: 1px solid #ccc;" />
+        @foreach (var (userId, videoFrame) in RemoteVideoFrames)
+        {
+            <div style="margin: 10px;">
+                <FluentLabel Typo="Typography.Body">
+                    User: @userId
+                </FluentLabel>
+                <img src="@videoFrame" alt="Remote Video Frame" style="width: 100%; max-width: 400px; border: 1px solid #ccc;" />
+            </div>
+        }
     </div>
 </FluentDialogBody>
 
 @code {
-    [Parameter, EditorRequired]
-    public HubConnection? hubConnection { get; set; }
+    [Parameter]
+    public required VideoStreamDialogContentModel Content { get; set; }
 
     [CascadingParameter]
     public FluentDialog? Dialog { get; set; }
 
-    private Channel<string>? streamChannel;
-    private CancellationTokenSource? cancellationTokenSource;
+    private Channel<string>? LocalStreamChannel;
+    private CancellationTokenSource? LocalStreamCts;
+    private bool IsLocalStreamStarted = false;
+    private Channel<RemoteVideoStreams>? RemoteStreamChannel;
+    private ConcurrentDictionary<string, string> RemoteVideoFrames = [];
 
     protected override async Task OnInitializedAsync()
     {
-        var stream = hubConnection!.StreamAsync<string>(Constants.SERVER_STREAM_VIDEO);
+        await base.OnInitializedAsync();
+    }
 
-        await foreach (var videoFrame in stream)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
         {
-            
+            await JSRuntime.InvokeVoidAsync("startCamera", "localVideo");
+
+            await InitRemoteStream();
+
+            Content.HubConnection!.On<string, long>(Constants.CLIENT_STREAM_STARTED, HandleRemoteStreamStarted);
+            Content.HubConnection!.On<string, long>(Constants.CLIENT_STREAM_STOPPED, HandleRemoteStreamStopped);
         }
+
+        await base.OnAfterRenderAsync(firstRender);
     }
 
     private async Task CloseClick()
     {
+        await DisposeAsync();
         await Dialog!.CancelAsync();
+    }
+
+    private async Task CreateLocalStream()
+    {
+        await DisposeLocalStream();
+
+        LocalStreamChannel = Channel.CreateUnbounded<string>();
+
+        await Content.HubConnection!.SendAsync(Constants.SERVER_REGISTER_STREAM_CHANNEL, Content.RoomId, LocalStreamChannel.Reader);
+    }
+
+    private async Task DisposeLocalStream()
+    {
+        if (LocalStreamChannel is not null)
+        {
+            await Content.HubConnection!.SendAsync(Constants.SERVER_UNREGISTER_STREAM_CHANNEL, Content.RoomId);
+
+            LocalStreamChannel.Writer.Complete();
+            LocalStreamChannel = null;
+        }
+    }
+
+    private async Task StartLocalStream()
+    {
+        await CreateLocalStream();
+
+        LocalStreamCts = new CancellationTokenSource();
+        var token = LocalStreamCts.Token;
+
+        var videoCanvas = await JSRuntime.InvokeAsync<ElementReference>("document.getElementById", "videoCanvas");
+        var localVideo = await JSRuntime.InvokeAsync<ElementReference>("document.getElementById", "localVideo");
+
+        await Content.HubConnection!.SendAsync(Constants.SERVER_STREAM_STARTED);
+
+        IsLocalStreamStarted = true;
+
+        await foreach (var frame in CaptureVideoFrames(videoCanvas, localVideo, token))
+        {
+            if (LocalStreamChannel is not null)
+            {
+                await LocalStreamChannel.Writer.WriteAsync(frame);
+            }
+            else
+            {
+                await StopLocalStream();
+                break;
+            }
+        }
+    }
+
+    private async Task StopLocalStream()
+    {
+        await DisposeLocalStream();
+        LocalStreamCts?.Cancel();
+        await JSRuntime.InvokeVoidAsync("stopCamera", "localVideo");
+        IsLocalStreamStarted = false;
+    }
+
+    private async IAsyncEnumerable<string> CaptureVideoFrames(ElementReference canvas, ElementReference video, [EnumeratorCancellation] CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
+        {
+            var frame = await JSRuntime.InvokeAsync<string>("captureFrame", canvas, video);
+            yield return frame;
+            await Task.Delay(100); // Capture a frame every 100ms
+        }
+    }
+
+    private void CreateRemoteStream()
+    {
+        DisposeRemoteStream();
+
+        RemoteStreamChannel = Channel.CreateUnbounded<RemoteVideoStreams>();
+    }
+
+    private void DisposeRemoteStream()
+    {
+        if (RemoteStreamChannel is not null)
+        {
+            RemoteStreamChannel.Writer.Complete();
+            RemoteStreamChannel = null;
+        }
+    }
+
+    private async Task InitRemoteStream()
+    {
+        CreateRemoteStream();
+
+        List<ChannelReader<(string, string)>> remoteStreams = [];
+
+        await Content.HubConnection!.SendAsync(Constants.SERVER_STREAM_REMOTE_CHANNELS, Content.RoomId, RemoteStreamChannel!.Writer);
+
+        await foreach (var channel in RemoteStreamChannel.Reader.ReadAllAsync())
+        {
+            if (channel is not null && channel.Streams is not null)
+            {
+                remoteStreams.AddRange(channel.Streams!);
+                break;
+            }
+        }
+
+        await Parallel.ForEachAsync(remoteStreams, async (stream, token) =>
+        {
+            await foreach (var (userId, videoFrame) in stream.ReadAllAsync(token))
+            {
+                RemoteVideoFrames[userId] = videoFrame;
+                StateHasChanged();
+            }
+        });
+    }
+
+    private async Task HandleRemoteStreamStarted(string userId, long roomId)
+    {
+        await InitRemoteStream();
+    }
+
+    private async Task HandleRemoteStreamStopped(string userId, long roomId)
+    {
+        await InitRemoteStream();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await StopLocalStream();
+        await DisposeLocalStream();
+        DisposeRemoteStream();
     }
 }

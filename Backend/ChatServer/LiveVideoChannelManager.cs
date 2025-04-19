@@ -5,29 +5,44 @@ namespace Backend.ChatServer;
 
 public sealed class LiveVideoChannelManager
 {
-    private static readonly ConcurrentDictionary<long, ConcurrentDictionary<(string, string), ChannelReader<string>>> Channels = new();
+    private static readonly ConcurrentDictionary<long, ConcurrentDictionary<(string, string), ChannelReader<(string, string)>>> RoomChannels = new();
 
-    public bool AddRoomChannel(long roomId, string userId, string connectionId, ChannelReader<string> channel)
+    public bool AddRoomChannel(long roomId, string userId, string connectionId, ChannelReader<(string, string)> channel)
     {
-        if (!Channels.ContainsKey(roomId))
+        if (!RoomChannels.ContainsKey(roomId))
         {
-            Channels.TryAdd(roomId, new ConcurrentDictionary<(string, string), ChannelReader<string>>());
+            RoomChannels.TryAdd(roomId, new ConcurrentDictionary<(string, string), ChannelReader<(string, string)>>());
         }
-        return Channels[roomId].TryAdd((userId, connectionId), channel);
+
+        if (RoomChannels[roomId].ContainsKey((userId, connectionId)))
+        {
+            RoomChannels[roomId].TryRemove((userId, connectionId), out _);
+        }
+
+        return RoomChannels[roomId].TryAdd((userId, connectionId), channel);
     }
 
     public bool RemoveRoomChannel(long roomId, string userId, string connectionId)
     {
-        if (Channels.ContainsKey(roomId))
+        if (RoomChannels.ContainsKey(roomId))
         {
-            return Channels[roomId].TryRemove((userId, connectionId), out _);
+            return RoomChannels[roomId].TryRemove((userId, connectionId), out _);
         }
 
         return false;
     }
 
-    public ConcurrentDictionary<(string, string), ChannelReader<string>>? GetRoomChannels(long roomId)
+    public void RemoveChannels(string userId, string connectionId)
     {
-        return Channels[roomId];
+        RoomChannels.Where(kvp => kvp.Value.ContainsKey((userId, connectionId))).ToList().ForEach(kvp => {
+            RoomChannels.TryRemove(kvp.Key, out _);
+        });
+    }
+
+    public IEnumerable<ChannelReader<(string, string)>>? GetRoomChannels(long roomId)
+    {
+        return RoomChannels[roomId]
+            .Values
+            .AsEnumerable();
     }
 }
